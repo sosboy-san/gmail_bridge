@@ -2,7 +2,7 @@
 
 ## 方針
 
-実運用済みのコピーを元に、取り込み・通知・削除の状態遷移とDBスキーマを維持して公開用の整備を行いました。本番NASには接続していません。GitHubリポジトリ作成、commit、push、公開状態の変更は行っていません。
+実運用済みのコピーを元に、取り込み・通知・削除の状態遷移とDBスキーマを維持して公開用の整備を行いました。本番NASには接続していません。初回ローカル整理後、所有者が作成したPrivateリポジトリへGitHub連携APIでコミットとmainブランチへの反映を行い、GitHub Actionsを確認しました。公開状態は変更していません。
 
 ## 変更ファイル
 
@@ -44,7 +44,7 @@ Gmail取り込み後の通知失敗で再importしない処理、通常/fallback
 
 ## 検証結果
 
-2026-09-22、Windows上のPython 3.12.14で実施しました。
+2026-09-22、Windows上のPython 3.12.14と、GitHub ActionsのUbuntu/Linux・Python 3.12で実施しました。[初回Linux CI実行結果](https://github.com/sosboy-san/gmail_bridge/actions/runs/35693704376)（コミット `f2894c61e5b263a5596922816f135431c49ad37a`）は全ステップ成功です。
 
 | 検査 | 結果 |
 | --- | --- |
@@ -53,14 +53,15 @@ Gmail取り込み後の通知失敗で再importしない処理、通常/fallback
 | Python構文検査（compileall） | app、make_token、tests、toolsで成功 |
 | 全appモジュールとmake_tokenのimport | 成功。OAuthや外部接続の副作用なし |
 | Ruff（E4/E7/E9/F/I） | 成功。重複定義・未使用import等を確認 |
-| 回帰テスト | 初回30件中29件成功、Linuxの実flock検証1件はWindowsでskip。追加のTZ検証2件もLinux/コンテナで実行する設計 |
+| 回帰テスト | Linux CIで32件すべて成功、skipなし。Windowsで未実施だったflockとTZ検証も成功 |
 | 設定なし、不足、不正値、%入りパスワード、日英CLI | オフラインテストで確認 |
 | 重要24関数の元コードとのAST比較 | 文言参照と同値の通知判定名を戻すと一致。取り込み・通知状態・削除ガードを含む |
 | 翻訳キーとプレースホルダ、アプリ内の日本語表示リテラル残存 | 検査成功。日本語コメント・docstringは維持 |
-| Compose | YAMLの解析とマウント・再起動設定の構造検査成功。Docker公式コマンドによる検証は未実施 |
-| Docker | COPY対象とビルドコンテキストの除外を確認。この環境にDockerがないため実ビルド・起動は未実施 |
+| Compose | 構造検査とLinux CIでの `docker compose ... config --quiet` に成功 |
+| Docker | Linux CIでpython:3.12-slimからの実ビルドとイメージ内CLI起動に成功 |
+| コンテナのタイムゾーン | ビルド時の東京日付変換検査に成功。完成イメージ内の子プロセスTZ継承・東京午前0時のcleanup切り替え2件も成功 |
 | 公開対象37ファイルの簡易秘密情報検査 | 典型的な実メールアドレス・OAuth情報・Driveリンク・NAS固有パスの検出なし。設定例の秘密値は空欄 |
-| Git履歴 | 入力フォルダに.gitがなく検査対象なし。GitHub作成・commit・pushも未実施 |
+| GitHub反映 | 新規Privateリポジトリのmainへ37ファイルを反映。リモートの全ファイルのblobハッシュがローカル公開対象と一致することを確認 |
 | 実サービス・NAS | 未接続、未変更。下記の手動確認が必要 |
 
 テストでは、通知失敗後もGmail import回数が増えないこと、ラベル失敗後の通常/fallback pending再開、既読/未読処理、IMAPの最大3回試行と待機、障害通知の抑制、復旧通知、UIDVALIDITY不一致、UID不在、UIDPLUSの対象限定EXPUNGE、非UIDPLUSでのDeleted検査とロールバック、cleanup失敗時の未確定、日次marker、SQLiteバックアップの整合性などを確認しています。
@@ -71,11 +72,11 @@ Gmail取り込み後の通知失敗で再importしない処理、通常/fallback
 
 DockerfileのCMD（app.service）が常駐ループを所有し、公開用Composeにcommand/entrypointの上書きがないことを静的検査へ追加しました。旧ComposeやContainer Stationにあるシェルループは移行時に外す手順を追記しています。
 
-slimの内容だけに依存せずOSのtzdataを明示導入し、ビルド時に東京の午前0時の日付変換を検査します。CIにはビルドしたイメージ内のTZ継承・午前0時をまたぐcleanup検証を追加しました。Windows上ではこれらLinux用2件はskipです。Dockerがないため、実際のビルド・コンテナ内検証が成功したという確認はまだできていません。取り込み・通知・削除の処理フローとUTCでのDB記録は変更していません。
+slimの内容だけに依存せずOSのtzdataを明示導入し、ビルド時に東京の午前0時の日付変換を検査します。GitHub Actionsで実ビルドに成功し、完成イメージ内のTZ継承・午前0時をまたぐcleanup検証も成功しました。Windows上ではこれらLinux用2件はskipですが、Linux側ではskipなしです。取り込み・通知・削除の処理フローとUTCでのDB記録は変更していません。
 
 ## 手動で必要な受け入れ確認
 
-- Dockerを利用できるLinux/QNAPで `docker compose ... config --quiet` と `docker build` を実行。対象CPUで依存パッケージが導入できること。
+- CIのLinux環境ではComposeとDockerビルド確認済み。実際に使うQNAPのCPU・Container Stationでもビルド／起動とマウント権限を確認すること。
 - 専用メールで通常取り込み、添付拒否時のDrive fallback、本文・添付名・リンク・出所ラベル・未読状態を確認。
 - ntfyを一時的に失敗させ、Gmailの件数が増えず通知だけ再送されること。
 - IMAP到達不可→最大3回の試行→障害通知→重複抑制→復旧通知を実機確認。
@@ -92,4 +93,4 @@ API成功とローカルcommitの間のクラッシュによる重複可能性�
 
 This preparation preserves the existing message/notification state machine and schema. Behavior changes are limited to verified STARTTLS, early configuration/argument validation, literal INI values, honoring disabled deletion for existing schedules, matching OAuth generation to Gmail+Drive client scopes, and bundling the existing service loop. Notifications and pending import recovery remain separate. The overridden duplicate notification query was removed; the effective implementation remains.
 
-Pinned production dependencies are unchanged. Live Google/IMAP/ntfy access and NAS operations were not performed. The checklist above requires Linux Docker/Compose validation and real-service acceptance before deployment. Repository creation, commits, pushes and public visibility changes were not performed. The owner selected the MIT License.
+Pinned production dependencies are unchanged. GitHub Actions passed all 32 Linux tests, Compose validation, a real slim-image build, CLI startup, and two additional timezone checks inside the built image. The 37 release files were committed through the GitHub API to the owner's newly created Private repository. Visibility remains Private. Live Google/IMAP/ntfy and actual QNAP acceptance testing are still required. The owner selected the MIT License.
