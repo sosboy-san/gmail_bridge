@@ -1,0 +1,27 @@
+name: Offline checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pip check
+      - run: python -m compileall -q app make_token.py tests tools
+      - run: python -m ruff check app make_token.py tests tools
+      - run: python -m unittest discover -s tests -v
+      - run: python tools/check_release.py
+      - run: docker compose -f docker-compose.example.yml config --quiet
+      - run: docker build -t gmail-bridge:ci .
+      - run: docker run --rm gmail-bridge:ci python -m app.main --lang en --help
+      - name: Verify Tokyo timezone inside the built slim image
+        run: >-
+          docker run --rm -e TZ=Asia/Tokyo
+          --mount type=bind,source=${{ github.workspace }}/tests,target=/checks,readonly
+          gmail-bridge:ci python -m unittest discover -s /checks -p test_container.py -v

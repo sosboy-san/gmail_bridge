@@ -1,0 +1,15 @@
+# Allowlist: unrelated files and credentials never enter the build context.
+**
+!Dockerfile
+!requirements.txt
+!app/
+app/**
+!app/*.py
+!app/locales/
+app/locales/**
+!app/locales/*.json
+**/__pycache__/
+**/*.py[cod]
+**/*token*.json
+**/*credentials*.json
+**/*client_secret*.json

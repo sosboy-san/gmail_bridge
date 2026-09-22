@@ -1,0 +1,50 @@
+services:
+  gmail-bridge:
+    build: .
+    image: gmail-bridge:local
+    # The image CMD runs app.service. Do not add command: or a second shell loop.
+    restart: unless-stopped
+    init: true
+    working_dir: /app
+    user: "${BRIDGE_UID:-1000}:${BRIDGE_GID:-1000}"
+    environment:
+      TZ: "${TZ:-Asia/Tokyo}"
+    stop_grace_period: 2m
+    volumes:
+      - type: bind
+        source: ./config.ini
+        target: /app/config.ini
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./credentials.json
+        target: /app/credentials.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./token.json
+        target: /app/token.json
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./data
+        target: /app/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./backups
+        target: /app/backups
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./logs
+        target: /app/logs
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
