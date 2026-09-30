@@ -128,3 +128,7 @@ Gmailへの保存には `users.messages.import` を使い、通常受信に近�
 本プロジェクトの設計整理、ドキュメント作成、公開準備には、OpenAIのChatGPTを活用しました。
 
 Development, documentation, and release preparation were supported with assistance from ChatGPT by OpenAI.
+
+## Docker Hubイメージの利用
+
+取得用の `docker-compose.image.example.yml` と正式版タグ限定の自動公開を用意しています。公開先は `sosboy/gmail-bridge`、既定の固定バージョンは `1.0.0` です。**初回のDocker Hub公開は設定・実行待ちです。** 公開成功後の導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。

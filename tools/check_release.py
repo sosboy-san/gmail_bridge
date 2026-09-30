@@ -19,7 +19,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 ROOT_FILES = (
     '.gitignore', '.dockerignore', '.gitattributes', 'Dockerfile',
-    'docker-compose.example.yml', 'config.example.ini', 'requirements.txt',
+    'docker-compose.example.yml', 'docker-compose.image.example.yml', 'DOCKER_RELEASE.md', 'config.example.ini', 'requirements.txt',
     'requirements-dev.txt', 'pyproject.toml', 'make_token.py', 'LICENSE',
     'README.md', 'INSTALL.md', 'UNINSTALL.md', 'TROUBLESHOOTING.md',
     'CONTRIBUTING.md', 'SECURITY.md', 'RELEASE_NOTES.md',
@@ -120,6 +120,10 @@ def inspect():
     assert mounts['/app/credentials.json']['read_only']
     assert not mounts['/app/token.json'].get('read_only', False)
     assert not bridge.get('ports')
+    image_compose = yaml.safe_load((ROOT / 'docker-compose.image.example.yml').read_text(encoding='utf-8'))
+    image_bridge = image_compose['services']['gmail-bridge']
+    assert 'build' not in image_bridge
+    assert {k: v for k, v in bridge.items() if k not in ('build', 'image')} == {k: v for k, v in image_bridge.items() if k != 'image'}
     dockerfile = (ROOT / 'Dockerfile').read_text(encoding='utf-8')
     assert 'CMD ["python", "-m", "app.service"]' in dockerfile
     assert 'install -y --no-install-recommends tzdata' in dockerfile

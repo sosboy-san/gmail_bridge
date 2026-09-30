@@ -18,6 +18,7 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: python tools/check_release.py
       - run: docker compose -f docker-compose.example.yml config --quiet
+      - run: DOCKERHUB_NAMESPACE=example docker compose -f docker-compose.image.example.yml config --quiet
       - run: docker build -t gmail-bridge:ci .
       - run: docker run --rm gmail-bridge:ci python -m app.main --lang en --help
       - name: Verify Tokyo timezone inside the built slim image

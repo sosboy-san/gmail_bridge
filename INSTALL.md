@@ -174,3 +174,7 @@ For QNAP, use a dedicated share and the same six mounts listed above, `/app` wor
 The image CMD is the sole owner of the persistent loop. Do not override it with a Compose `command`/`entrypoint` or an old Container Station shell loop. The image explicitly installs system tzdata and checks Tokyo's midnight conversion during build. Compose defaults to Asia/Tokyo, whereas the bare image defaults to Etc/UTC; shell/.env TZ can override the Compose example. Use the time-check command above to verify `Asia/Tokyo` and `+09:00`. CI additionally tests TZ inheritance and the cleanup date boundary inside the built slim image. Database timestamps and backup dates remain UTC.
 
 Daily database backups use UTC dates and retain the newest 14 files; run logs use local dates and a 30-day modification-time cutoff. Cleanup uses the container local date. These are fixed operational values, not extra INI options. Stop all processes before restoring state; an older backup can cause duplicates for messages imported after its timestamp.
+
+## Docker Hubイメージの利用
+
+取得用の `docker-compose.image.example.yml` と正式版タグ限定の自動公開を用意しています。公開先は `sosboy/gmail-bridge`、既定の固定バージョンは `1.0.0` です。**初回のDocker Hub公開は設定・実行待ちです。** 公開成功後の導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。
