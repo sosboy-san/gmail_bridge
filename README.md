@@ -106,3 +106,9 @@ Gmailへの保存には `users.messages.import` を使い、通常受信に近�
 標準では元サーバーのINBOXのみが対象です。`[imap] mailbox` で別のフォルダを指定できますが、1設定につき1フォルダで、サブフォルダを再帰的には巡回しません。取得前に対象フォルダ外へ移動されたメールは取り込まれません。複数のIMAPアカウントは設定・DB・実行環境を分けて運用してください。取り込み後の既読や整理操作を元サーバーへ戻す双方向同期ではありません。
 
 [メール取り込みAPIの公式説明](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/import)
+
+## Acknowledgements
+
+本プロジェクトの設計整理、ドキュメント作成、公開準備には、OpenAIのChatGPTを活用しました。
+
+Development, documentation, and release preparation were supported with assistance from ChatGPT by OpenAI.
