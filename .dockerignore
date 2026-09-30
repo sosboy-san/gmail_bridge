@@ -13,3 +13,5 @@ app/locales/**
 **/*token*.json
 **/*credentials*.json
 **/*client_secret*.json
+# Private acceptance environment; never send it to the Docker build context.
+test/

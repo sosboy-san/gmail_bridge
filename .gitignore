@@ -11,6 +11,8 @@ data/
 backups/
 logs/
 secrets/
+# Private QNAP acceptance environment (contains real credentials).
+/test/
 *.db
 *.db-*
 *.sqlite*

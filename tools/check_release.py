@@ -28,6 +28,10 @@ ROOT_FILES = (
 
 def public_files():
     paths = [ROOT / name for name in ROOT_FILES]
+    paths.extend(ROOT / 'docs' / name for name in (
+        'index.html', 'privacy.html', 'terms.html', 'style.css',
+        '.nojekyll', 'PUBLISHING.md',
+    ))
     for directory, pattern in (('app', '*.py'), ('app/locales', '*.json'),
                                ('tests', '*.py'), ('tools', '*.py'),
                                ('.github/workflows', '*.yml')):
