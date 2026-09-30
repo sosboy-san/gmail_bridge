@@ -16,7 +16,7 @@ docker build -t gmail-bridge:check .
 docker run --rm gmail-bridge:check python -m app.main --lang en --help
 ```
 
-GitHub Actionsは同じオフラインテストとDockerビルドをLinux上で実行します。テスト用OAuthトークンやリポジトリSecretsの登録は不要です。Windowsではflockの実検証だけskipし、Linux CIで検証します。CI成功は実サービス接続・NAS運用確認の代わりにはなりません。
+GitHub Actionsは同じオフラインテストとDockerビルドをLinux上で実行します。テスト用OAuthトークンやリポジトリSecretsの登録は不要です。WindowsではLinux固有のflock・タイムゾーン検証をskipし、Linux CIで検証します。CI成功は実サービス接続・NAS運用確認の代わりにはなりません。
 
 ## 翻訳の追加
 
@@ -37,7 +37,7 @@ DBスキーマや状態遷移、削除挙動を変える場合は、既存DBと�
 
 ## English
 
-Use Python 3.12 and the commands above. Tests use synthetic messages, temporary databases and mocked clients; they need no service credentials. CI also validates Compose and builds the Linux image. Real flock is skipped on Windows and tested on Linux.
+Use Python 3.12 and the commands above. Tests use synthetic messages, temporary databases and mocked clients; they need no service credentials. CI also validates Compose and builds the Linux image. Linux-specific flock and timezone checks are skipped on Windows and tested on Linux.
 
 To add a language, copy `en.json` to a new language-code filename and translate values without changing keys, placeholders, or HTML. `argparse.*` entries use percent-format placeholders; other messages use braces. Keep ntfy Title translations ASCII. Keep legacy default fallback-label entries unchanged because they identify stored labels. New catalogs are discovered automatically and missing keys fall back to English.
 

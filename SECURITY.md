@@ -16,7 +16,7 @@
 
 自動検査は典型的なキー・メールアドレス・Drive URL・パスのパターンを検出しますが、任意の個人名や短いtopic・パスワードを完全には判定できません。候補の値そのものは出力せずファイル名・行・種類だけを表示します。公開対象に実データがなくても、後から編集した内容は再点検が必要です。
 
-## GitHub公開手順（必ずPrivateから）
+## 自分のコピーをGitHubへ公開する場合
 
 1. `python tools/check_release.py --archive` で作ったZIPを、実運用ファイルのない新しいフォルダへ展開します。`LICENSE` の著作権表記を確認します。
 2. そのフォルダで以下を実行し、ステージされたファイルを自分の端末で確認します。diffをチャットや公開Issueへ貼る必要はありません。
@@ -45,7 +45,7 @@ gh repo create gmail-bridge --private --source=. --remote=origin --push
 
 5. Private上でCI（構文、lint、回帰テスト、Compose、Docker build）の成功を確認します。GitHub Actionsの出力にも実設定を出さないでください。
 6. [RELEASE_NOTES.md](RELEASE_NOTES.md) の実接続・QNAP確認を終え、リポジトリ内と全履歴を最終点検します。
-7. **所有者が最終確認した後にだけ** GitHubのVisibilityをPublicへ変更します。このプロジェクトは所有者が作成したPrivateリポジトリへ反映済みですが、Public化は実施していません。確認結果は [RELEASE_NOTES.md](RELEASE_NOTES.md) を参照してください。
+7. **所有者が最終確認した後にだけ** GitHubのVisibilityをPublicへ変更します。確認結果は [RELEASE_NOTES.md](RELEASE_NOTES.md) を参照してください。
 
 ## 漏えいに気づいた場合
 
@@ -59,6 +59,6 @@ Publish only the source, catalogs, examples, tests, container definitions, and d
 
 Review account details, personal/company names, OAuth credentials/tokens, ntfy topics/tokens, Drive links/IDs, NAS paths, logs, databases, backups and real-mail fixtures. The scanner is heuristic and cannot prove the absence of arbitrary secrets. It reports locations and types rather than matched values. Gitignore does not remove secrets already in history.
 
-Use the Git commands above to inspect staged content locally. Create a **Private** repository first, using `gh repo create ... --private` if desired. Check CI and complete live acceptance testing. Only the owner should change visibility to Public after final inspection of files, history and artifacts. This project has been committed to the owner's Private repository; visibility has not been changed. See RELEASE_NOTES.md for validation results.
+Use the Git commands above to inspect staged content locally. Create a **Private** repository first, using `gh repo create ... --private` if desired. Check CI and complete live acceptance testing. Only the owner should change visibility to Public after final inspection of files, history and artifacts. See RELEASE_NOTES.md for validation results.
 
 If a secret leaks, revoke/rotate it and then address history and artifacts. Never attach unredacted email, tokens, or logs to public issues. Gmail and Drive receive email content; protect local runtime data and use appropriate organizational authorization.

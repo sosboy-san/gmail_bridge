@@ -1,34 +1,8 @@
-# 公開用整理の記録
+# リリースノート / Release notes
 
-## 方針
+## 公開版の概要
 
-実運用済みのコピーを元に、取り込み・通知・削除の状態遷移とDBスキーマを維持して公開用の整備を行いました。本番NASには接続していません。初回ローカル整理後、所有者が作成したPrivateリポジトリへGitHub連携APIでコミットとmainブランチへの反映を行い、GitHub Actionsを確認しました。公開状態は変更していません。
-
-## 変更ファイル
-
-| ファイル | 変更内容 |
-| --- | --- |
-| app/main.py | 文言の翻訳参照、設定ローダー分離、重複通知判定の統一、未使用import除去、引数検証、Windowsでのhelp/status、削除無効設定の尊重 |
-| app/imap_client.py | 表示の翻訳参照、STARTTLS証明書検証の明示。取得・削除フローは維持 |
-| app/gmail_client.py / app/drive_client.py | 表示の翻訳参照、OAuthスコープ定義の共通化 |
-| app/mime_fallback.py | 案内・検証エラーの翻訳参照、未使用import除去。MIME組み立てフローは維持 |
-| app/notification_service.py / app/ntfy_client.py | 通知本文・診断の翻訳参照。独立した通知状態を維持 |
-| app/state.py | 表示の翻訳参照、重複importと上書きされていた旧get_pending_notifications定義の除去、バックアップ保持のコメント修正 |
-| app/config.py（新規） | UTF-8 INI、必須値と型の確認、秘密値を含めない設定エラー、言語選択 |
-| app/i18n.py / app/locales/ja.json / app/locales/en.json（新規） | JSON翻訳カタログ、自動言語検出、英語fallback、CLIとntfy・fallback本文の翻訳 |
-| app/oauth.py（新規） | 両クライアント・トークン生成で共通のスコープ |
-| app/service.py（新規） | 既存運用のrun/日次cleanup/60秒待機を同梱。cleanup成功時だけ完了日を保存 |
-| make_token.py | mainガード、GmailとDrive両方の権限、翻訳、既存tokenの上書き保護 |
-| Dockerfile / .dockerignore | 常駐CMD、依存整合性検査、許可リスト方式のCOPY対象 |
-| docker-compose.example.yml / config.example.ini（新規） | 汎用パス、永続マウント、再起動、秘密値が空の設定例 |
-| .gitignore / .gitattributes / pyproject.toml（新規） | 秘密情報と実行データの除外、改行・静的検査の設定 |
-| tests/test_regressions.py / tests/test_container.py / requirements-dev.txt（新規） | 外部接続なしの回帰テスト、コンテナのTZと日付境界の検証、検査ツールの固定版 |
-| tools/check_release.py（新規） | 公開対象の構文・翻訳・Compose構造・秘密情報の簡易検査、配布ZIP作成 |
-| .github/workflows/ci.yml（新規） | Linux上の検証とDockerビルド |
-| README.md / INSTALL.md / UNINSTALL.md / TROUBLESHOOTING.md / CONTRIBUTING.md / SECURITY.md / RELEASE_NOTES.md（新規） | 日英の概要、導入、運用、削除、翻訳、公開手順、検証記録 |
-| LICENSE（新規） | 所有者の指定によるMIT License。個人名は記載しない |
-
-`requirements.txt` の実運用版固定バージョン、`app/__init__.py` は変更していません。作業用 `.venv/`・`.release-work/`・各キャッシュは公開対象外で、配布ZIPにも含めません。
+外部IMAPメールをGmailへ取り込む既存実装を基に、日本語・英語の表示、設定検証、Docker常駐サービス、導入資料、回帰テストを整備しました。取り込み・通知・削除の状態遷移とDBスキーマは維持しています。MIT Licenseで公開しています。
 
 ## 動作に影響する変更
 
@@ -42,55 +16,51 @@
 
 Gmail取り込み後の通知失敗で再importしない処理、通常/fallbackのpending再開、最大3回の接続試行、障害通知抑制と復旧検出、UIDVALIDITY/UID/Deletedフラグによる削除ガードは維持しています。重複していた通知取得関数は実際に有効だった後側の定義を残しました。
 
-## 検証結果
+## 検証状況
 
-2026-09-22、Windows上のPython 3.12.14と、GitHub ActionsのUbuntu/Linux・Python 3.12で実施しました。[初回Linux CI実行結果](https://github.com/sosboy-san/gmail_bridge/actions/runs/35693704376)（コミット `f2894c61e5b263a5596922816f135431c49ad37a`）は全ステップ成功です。
+### 自動検証
 
-| 検査 | 結果 |
-| --- | --- |
-| requirements.txtの固定依存を仮想環境へ導入 | 成功。固定バージョンは変更なし |
-| pip check | 成功、依存関係の不整合なし |
-| Python構文検査（compileall） | app、make_token、tests、toolsで成功 |
-| 全appモジュールとmake_tokenのimport | 成功。OAuthや外部接続の副作用なし |
-| Ruff（E4/E7/E9/F/I） | 成功。重複定義・未使用import等を確認 |
-| 回帰テスト | Linux CIで32件すべて成功、skipなし。Windowsで未実施だったflockとTZ検証も成功 |
-| 設定なし、不足、不正値、%入りパスワード、日英CLI | オフラインテストで確認 |
-| 重要24関数の元コードとのAST比較 | 文言参照と同値の通知判定名を戻すと一致。取り込み・通知状態・削除ガードを含む |
-| 翻訳キーとプレースホルダ、アプリ内の日本語表示リテラル残存 | 検査成功。日本語コメント・docstringは維持 |
-| Compose | 構造検査とLinux CIでの `docker compose ... config --quiet` に成功 |
-| Docker | Linux CIでpython:3.12-slimからの実ビルドとイメージ内CLI起動に成功 |
-| コンテナのタイムゾーン | ビルド時の東京日付変換検査に成功。完成イメージ内の子プロセスTZ継承・東京午前0時のcleanup切り替え2件も成功 |
-| 公開対象37ファイルの簡易秘密情報検査 | 典型的な実メールアドレス・OAuth情報・Driveリンク・NAS固有パスの検出なし。設定例の秘密値は空欄 |
-| GitHub反映 | 新規Privateリポジトリのmainへ37ファイルを反映。リモートの全ファイルのblobハッシュがローカル公開対象と一致することを確認 |
-| 実サービス・NAS | 未接続、未変更。下記の手動確認が必要 |
+[公開ページ追加時のLinux CI](https://github.com/sosboy-san/gmail_bridge/actions/runs/36658743979)（コミット `12bbd50bd4983dde72437b54b5e230949b998a44`）は成功しています。最新の実行結果は [GitHub Actions](https://github.com/sosboy-san/gmail_bridge/actions) を参照してください。
 
-テストでは、通知失敗後もGmail import回数が増えないこと、ラベル失敗後の通常/fallback pending再開、既読/未読処理、IMAPの最大3回試行と待機、障害通知の抑制、復旧通知、UIDVALIDITY不一致、UID不在、UIDPLUSの対象限定EXPUNGE、非UIDPLUSでのDeleted検査とロールバック、cleanup失敗時の未確定、日次marker、SQLiteバックアップの整合性などを確認しています。
+- 依存関係整合性、Python構文・import、Ruff静的検査。
+- Linux上で32件のオフラインテスト。通知だけの再送、pending再開、IMAP再試行、障害・復旧通知、UIDVALIDITY/UIDによる削除ガードなどを検証。
+- Compose構文検証、Python 3.12 slimイメージのDockerビルド、イメージ内CLI起動。
+- 完成イメージ内でタイムゾーン継承・東京午前0時のcleanup切替を2件追加検証。
+- 公開ファイル一覧、翻訳カタログとプレースホルダ、秘密情報のパターン検査。
 
-公開ZIPは `python tools/check_release.py --archive` で再生成できます。SHA-256はZIPと同じ場所の `.zip.sha256` に出力します。ZIP内には許可した37ファイルだけを含めます。自動検査で任意の個人名・秘密値が完全に排除されたことまでは保証できないので、所有者の最終レビューを残しています。
+テストは架空データとモックを使用し、実サービスの認証情報は不要です。WindowsではLinux固有のflock・タイムゾーン検証がスキップされます。対応するLinux CIで検証します。
 
-### 追加確認: 常駐ループとタイムゾーン
+### 実機確認とその範囲
 
-DockerfileのCMD（app.service）が常駐ループを所有し、公開用Composeにcommand/entrypointの上書きがないことを静的検査へ追加しました。旧ComposeやContainer Stationにあるシェルループは移行時に外す手順を追記しています。
+所有者から、公開版を基にしたQNAP Container Station環境で初期化・起動ができたこと、および期限切れOAuthトークンの交換後に取り込みが再開したことが報告されています。これは所有者の環境での確認であり、全機能・全環境の受け入れ試験が完了したという意味ではありません。
 
-slimの内容だけに依存せずOSのtzdataを明示導入し、ビルド時に東京の午前0時の日付変換を検査します。GitHub Actionsで実ビルドに成功し、完成イメージ内のTZ継承・午前0時をまたぐcleanup検証も成功しました。Windows上ではこれらLinux用2件はskipですが、Linux側ではskipなしです。取り込み・通知・削除の処理フローとUTCでのDB記録は変更していません。
+導入先では次を確認してください。
 
-## 手動で必要な受け入れ確認
+- 通常取り込み、Drive fallback、本文・添付名・リンク・ラベル・既読状態。
+- 通知失敗時に再importせず通知だけ再送すること。
+- IMAP障害時の再試行・通知抑制・復旧通知。
+- OAuthの継続更新、ファイル権限、保存容量。
+- 専用の試験メールによるcleanupのdry-runと期限到来後削除。
+- コンテナ・NAS再起動後の復帰と永続データの保持。
 
-- CIのLinux環境ではComposeとDockerビルド確認済み。実際に使うQNAPのCPU・Container Stationでもビルド／起動とマウント権限を確認すること。
-- 専用メールで通常取り込み、添付拒否時のDrive fallback、本文・添付名・リンク・出所ラベル・未読状態を確認。
-- ntfyを一時的に失敗させ、Gmailの件数が増えず通知だけ再送されること。
-- IMAP到達不可→最大3回の試行→障害通知→重複抑制→復旧通知を実機確認。
-- 証明書検証、OAuth更新とDrive権限、tokenファイルの書き込み権限を確認。
-- 削除無効で試験を始め、DBとGmail/Driveを確認後に専用メールだけでcleanupのdry-runと期限到来後削除を確認。
-- コンテナ停止/再起動、NAS再起動後の自動復帰、DB・ログ・バックアップ・cleanup完了日の永続化を確認。
-- [SECURITY.md](SECURITY.md) の秘密情報チェックを終え、PrivateリポジトリでCIを通し、所有者が最終判断してからPublic化。
+本番メールを対象にする前に、削除を無効にした設定で試験してください。
 
-## 既存仕様として残した限界
+## コンテナ運用
 
-API成功とローカルcommitの間のクラッシュによる重複可能性、UIDPLUS非対応での他クライアントとのEXPUNGE競合、復旧通知失敗時にその通知だけを再送しない点、個別取り込み失敗でもrunが終了コード0になる点は、大規模な状態設計変更を避けて残しています。日次バックアップ保持は最新14ファイルであり厳密な14暦日ではありません。詳細はREADMEとTROUBLESHOOTINGを参照してください。
+常駐ループはDockerのCMDが起動する `app.service` に一本化しています。Composeで追加のループを指定しないでください。cleanup成功時のみ完了日を保存します。OSのtzdataを明示導入し、Composeの既定タイムゾーンはAsia/Tokyoです。DBの日時はUTCで記録します。
+
+## 既知の制限
+
+API成功とローカルDB確定の間のクラッシュによる重複可能性、UIDPLUS非対応での他クライアントとのEXPUNGE競合、復旧通知失敗時にその通知だけを再送しない点、個別取り込み失敗でもrunが終了コード0になる点は残っています。日次バックアップ保持は最新14ファイルであり、厳密な14暦日ではありません。詳細はREADMEとTROUBLESHOOTINGを参照してください。
+
+## 配布と公開対象
+
+`python tools/check_release.py --archive` は許可リストの公開ファイルだけをZIPへ含め、SHA-256を出力します。実設定、認証情報、実機用 `test/`、DB、ログ、バックアップ、作業用ファイルは対象外です。パターン検査は秘密情報の不存在を完全に保証するものではありません。[SECURITY.md](SECURITY.md) も参照してください。
 
 ## English
 
-This preparation preserves the existing message/notification state machine and schema. Behavior changes are limited to verified STARTTLS, early configuration/argument validation, literal INI values, honoring disabled deletion for existing schedules, matching OAuth generation to Gmail+Drive client scopes, and bundling the existing service loop. Notifications and pending import recovery remain separate. The overridden duplicate notification query was removed; the effective implementation remains.
+This release adds localization, configuration validation, a container service, documentation and offline regression tests while preserving the message/notification state machine and database schema. The linked Linux CI passed 32 tests, Compose validation, a real Docker build, CLI startup and two additional timezone checks inside the image.
 
-Pinned production dependencies are unchanged. GitHub Actions passed all 32 Linux tests, Compose validation, a real slim-image build, CLI startup, and two additional timezone checks inside the built image. The 37 release files were committed through the GitHub API to the owner's newly created Private repository. Visibility remains Private. Live Google/IMAP/ntfy and actual QNAP acceptance testing are still required. The owner selected the MIT License.
+The owner reported successful initialization/startup on QNAP Container Station and resumed imports after replacing an expired OAuth token. This is limited deployment evidence, not comprehensive acceptance testing. Verify import/fallback, notification retries, outage recovery, cleanup, persistent storage and restart behavior in your own environment. Linux-specific checks are skipped on Windows and covered by Linux CI.
+
+Known limitations include possible duplicates between remote success and local commit, EXPUNGE races without UIDPLUS, no dedicated retry of failed recovery notifications, and a zero run exit code despite individual message failures. Production dependencies remain pinned. See the installation and troubleshooting guides before deployment.

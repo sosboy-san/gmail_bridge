@@ -2,7 +2,7 @@
 
 外部メールサーバーのIMAPメールを、Gmail APIでGmailへ取り込むPythonアプリです。Gmailの外部POP取得を利用できない環境で、会社メールなどをGmailから確認する用途を想定しています。
 
-元の実装はQNAP NAS / Container Stationで運用確認済みです。この公開用コピーは、表示の多言語化・導入手順・秘密情報の除外・オフラインテストを追加したものです。**公開版の実サービス接続とDockerビルドの確認状況は [RELEASE_NOTES.md](RELEASE_NOTES.md) を参照してください。**
+元の実装はQNAP NAS / Container Stationで運用確認済みです。公開版には、表示の多言語化・導入手順・秘密情報の除外・オフラインテストを追加しています。**公開版の実サービス接続とDockerビルドの確認状況は [RELEASE_NOTES.md](RELEASE_NOTES.md) を参照してください。**
 
 [English](#english) · [導入 / Installation](INSTALL.md) · [削除 / Uninstall](UNINSTALL.md) · [トラブル対応](TROUBLESHOOTING.md) · [公開前確認](SECURITY.md)
 
@@ -85,7 +85,7 @@ tools/check_release.py    公開対象検査・配布ZIP作成
 
 Gmail Bridge imports mail from an external IMAP mailbox through the Gmail API. The original implementation has been used on QNAP Container Station. This release adds Japanese/English catalogs, installation documentation, packaging safeguards, and offline regression tests while preserving the import and notification state machine.
 
-Read [Installation](INSTALL.md#english), [Uninstall](UNINSTALL.md#english), [Troubleshooting](TROUBLESHOOTING.md#english), and [Release notes](RELEASE_NOTES.md) before deployment. The public revision still requires live acceptance testing.
+Read [Installation](INSTALL.md#english), [Uninstall](UNINSTALL.md#english), [Troubleshooting](TROUBLESHOOTING.md#english), and [Release notes](RELEASE_NOTES.md) before deployment. QNAP startup and resumed imports have been reported by the owner; verify the acceptance checks for your own deployment.
 
 Messages are fetched with `BODY.PEEK[]`. Source unread messages receive Gmail's UNREAD label; later read-state changes are not synchronized. Gmail import is followed by source labeling and an independent ntfy queue. A failed notification is retried without repeating import. An attachment rejection triggers Drive fallback: attachments go to Drive and Gmail receives a reduced message with links. Drive sharing permissions are not made public by this application.
 

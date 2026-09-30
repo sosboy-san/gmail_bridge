@@ -1,6 +1,6 @@
 # GitHub Pages 公開手順
 
-現時点ではローカル準備のみです。リポジトリの公開範囲・Pages・Google OAuth設定は変更していません。
+このリポジトリの紹介サイトは、`main` ブランチの `/docs` からGitHub Pagesで公開しています。以下は保守・再公開時の手順です。
 
 ## 公開前の確認
 
@@ -10,7 +10,7 @@
 4. GitHubのSettings → Pagesで、公開元を対象ブランチの `/docs` に設定します。利用可能な設定はリポジトリのプラン・権限に従います。
 5. GitHubに表示される実際の公開URLを開き、全ページとリンクを確認します。
 
-標準的なプロジェクトPagesの予定URL（まだ公開・到達確認していません）:
+公開URL:
 
 - 紹介: https://sosboy-san.github.io/gmail_bridge/
 - プライバシー: https://sosboy-san.github.io/gmail_bridge/privacy.html
