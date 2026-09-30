@@ -177,4 +177,4 @@ Daily database backups use UTC dates and retain the newest 14 files; run logs us
 
 ## Docker Hubイメージの利用
 
-取得用の `docker-compose.image.example.yml` と正式版タグ限定の自動公開を用意しています。公開先は `sosboy/gmail-bridge`、既定の固定バージョンは `1.0.0` です。**初回のDocker Hub公開は設定・実行待ちです。** 公開成功後の導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。
+取得用の `docker-compose.image.example.yml` と正式版タグ限定の自動公開を用意しています。公開先は `sosboy/gmail-bridge`、既定の固定バージョンは `1.0.0` です。**[Docker Hubで公開済み](https://hub.docker.com/r/sosboy/gmail-bridge)です（linux/amd64・linux/arm64）。** 導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。

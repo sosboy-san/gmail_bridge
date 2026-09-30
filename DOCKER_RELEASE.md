@@ -1,6 +1,6 @@
 # Docker Hubへの正式版公開
 
-公開先は `sosboy/gmail-bridge`。公開の自動化を準備した段階です。Docker Hubの初回pushが成功するまでは、イメージを取得できません。
+公開先は [sosboy/gmail-bridge](https://hub.docker.com/r/sosboy/gmail-bridge)。2026-09-30にv1.0.0の初回公開が完了しました。[公開ワークフロー](https://github.com/sosboy-san/gmail_bridge/actions/runs/36676882196)で両CPU向けのテスト、4タグのdigest一致、linux/amd64・linux/arm64のmanifestを確認しています。
 
 ## 管理者の初回設定
 
@@ -47,7 +47,7 @@ docker buildx imagetools inspect sosboy/gmail-bridge:latest
 
 ## イメージから導入する
 
-初回公開成功後に利用できます。`docker-compose.image.example.yml` を `docker-compose.yml` へコピーします。既定は `sosboy/gmail-bridge:1.0.0`。ビルドは不要で、CPUアーキテクチャはDockerが選択します。ARM32には対応しません。
+公開イメージを利用できます。`docker-compose.image.example.yml` を `docker-compose.yml` へコピーします。既定は `sosboy/gmail-bridge:1.0.0`。ビルドは不要で、CPUアーキテクチャはDockerが選択します。ARM32には対応しません。
 
 [INSTALL.md](INSTALL.md)のOAuth作成、config.ini、token.json、credentials.json、data/・backups/・logs/の準備と権限設定は必要です。常駐を起動する前に初期化します。
 
