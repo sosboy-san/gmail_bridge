@@ -1,10 +1,14 @@
 # リリースノート / Release notes
 
-## 公開版の概要
+## v1.0.0 - 2026-09-30
+
+初回正式リリースです。`main` は開発最新版、GitHub Releaseとタグは正式版として管理します。
+
+### 公開版の概要
 
 外部IMAPメールをGmailへ取り込む既存実装を基に、日本語・英語の表示、設定検証、Docker常駐サービス、導入資料、回帰テストを整備しました。取り込み・通知・削除の状態遷移とDBスキーマは維持しています。MIT Licenseで公開しています。
 
-## 動作に影響する変更
+### 動作に影響する変更
 
 1. **STARTTLS証明書検証**: `ssl.create_default_context()` を明示。信頼されない証明書・ホスト名不一致は接続失敗になります。社内CAを使う環境では信頼設定が必要です。
 2. **設定検証と引数検証**: 必須IMAP値の欠落、無効な真偽値/ポート/削除猶予、0以下のlatest/UID、不正日付は早期エラーです。ポート未指定は143。削除猶予は1日以上です。
@@ -16,9 +20,9 @@
 
 Gmail取り込み後の通知失敗で再importしない処理、通常/fallbackのpending再開、最大3回の接続試行、障害通知抑制と復旧検出、UIDVALIDITY/UID/Deletedフラグによる削除ガードは維持しています。重複していた通知取得関数は実際に有効だった後側の定義を残しました。
 
-## 検証状況
+### 検証状況
 
-### 自動検証
+#### 自動検証
 
 [公開ページ追加時のLinux CI](https://github.com/sosboy-san/gmail_bridge/actions/runs/36658743979)（コミット `12bbd50bd4983dde72437b54b5e230949b998a44`）は成功しています。最新の実行結果は [GitHub Actions](https://github.com/sosboy-san/gmail_bridge/actions) を参照してください。
 
@@ -30,7 +34,7 @@ Gmail取り込み後の通知失敗で再importしない処理、通常/fallback
 
 テストは架空データとモックを使用し、実サービスの認証情報は不要です。WindowsではLinux固有のflock・タイムゾーン検証がスキップされます。対応するLinux CIで検証します。
 
-### 実機確認とその範囲
+#### 実機確認とその範囲
 
 所有者から、公開版を基にしたQNAP Container Station環境で初期化・起動ができたこと、および期限切れOAuthトークンの交換後に取り込みが再開したことが報告されています。これは所有者の環境での確認であり、全機能・全環境の受け入れ試験が完了したという意味ではありません。
 
@@ -45,19 +49,19 @@ Gmail取り込み後の通知失敗で再importしない処理、通常/fallback
 
 本番メールを対象にする前に、削除を無効にした設定で試験してください。
 
-## コンテナ運用
+### コンテナ運用
 
 常駐ループはDockerのCMDが起動する `app.service` に一本化しています。Composeで追加のループを指定しないでください。cleanup成功時のみ完了日を保存します。OSのtzdataを明示導入し、Composeの既定タイムゾーンはAsia/Tokyoです。DBの日時はUTCで記録します。
 
-## 既知の制限
+### 既知の制限
 
 API成功とローカルDB確定の間のクラッシュによる重複可能性、UIDPLUS非対応での他クライアントとのEXPUNGE競合、復旧通知失敗時にその通知だけを再送しない点、個別取り込み失敗でもrunが終了コード0になる点は残っています。日次バックアップ保持は最新14ファイルであり、厳密な14暦日ではありません。詳細はREADMEとTROUBLESHOOTINGを参照してください。
 
-## 配布と公開対象
+### 配布と公開対象
 
 `python tools/check_release.py --archive` は許可リストの公開ファイルだけをZIPへ含め、SHA-256を出力します。実設定、認証情報、実機用 `test/`、DB、ログ、バックアップ、作業用ファイルは対象外です。パターン検査は秘密情報の不存在を完全に保証するものではありません。[SECURITY.md](SECURITY.md) も参照してください。
 
-## English
+### English
 
 This release adds localization, configuration validation, a container service, documentation and offline regression tests while preserving the message/notification state machine and database schema. The linked Linux CI passed 32 tests, Compose validation, a real Docker build, CLI startup and two additional timezone checks inside the image.
 

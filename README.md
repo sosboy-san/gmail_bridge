@@ -1,10 +1,26 @@
 # Gmail Bridge
 
+正式版: **[v1.0.0](https://github.com/sosboy-san/gmail_bridge/releases/tag/v1.0.0)**（2026-09-30）
+
 外部メールサーバーのIMAPメールを、Gmail APIでGmailへ取り込むPythonアプリです。Gmailの外部POP取得を利用できない環境で、会社メールなどをGmailから確認する用途を想定しています。
 
 元の実装はQNAP NAS / Container Stationで運用確認済みです。公開版には、表示の多言語化・導入手順・秘密情報の除外・オフラインテストを追加しています。**公開版の実サービス接続とDockerビルドの確認状況は [RELEASE_NOTES.md](RELEASE_NOTES.md) を参照してください。**
 
 [English](#english) · [導入 / Installation](INSTALL.md) · [削除 / Uninstall](UNINSTALL.md) · [トラブル対応](TROUBLESHOOTING.md) · [公開前確認](SECURITY.md)
+
+## バージョン方針
+
+`main` は開発最新版です。導入には [GitHub Releases](https://github.com/sosboy-san/gmail_bridge/releases) の正式版タグを使用してください。正式版はタグで固定し、公開済みタグを別のコミットへ付け替えません。
+
+Semantic Versioning（MAJOR.MINOR.PATCH）を採用します。互換性の対象は、文書化したCLI・設定形式・永続DBと運用上の振る舞いです。
+
+| 例 | 変更内容 |
+| --- | --- |
+| `v1.0.1` | 後方互換を保つバグ修正 |
+| `v1.1.0` | 後方互換を保つ機能追加 |
+| `v2.0.0` | 設定形式・DB・CLIなどの互換性を壊す変更 |
+
+正式版でも既知の制限はあります。[リリースノート](RELEASE_NOTES.md)で検証範囲と導入時の注意を確認してください。
 
 ## できること
 
