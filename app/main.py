@@ -1,10 +1,8 @@
 import argparse
-import os
 import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from app.i18n import t
 
@@ -13,7 +11,7 @@ try:
 except ImportError:  # Help/status and offline tests can also run on Windows.
     fcntl = None
 
-from app.config import configure_language, load_config
+from app.config import configure_language, load_config, validate_runtime_files
 from app.drive_client import DriveClient
 from app.gmail_client import (
     GmailClient,
@@ -21,6 +19,7 @@ from app.gmail_client import (
 )
 from app.i18n import argparse_text, available_languages
 from app.imap_client import ImapClient
+from app.locking import acquire_lock, locked_command
 from app.mime_fallback import (
     build_fallback_message,
     extract_attachments,
@@ -28,10 +27,12 @@ from app.mime_fallback import (
     save_attachment_temp,
     validate_fallback_message,
 )
+from app.notification_metadata import notification_metadata
 from app.notification_service import (
     send_pending_notifications,
 )
 from app.ntfy_client import NtfyClient
+from app.paths import runtime_path
 from app.state import (
     all_drive_files_uploaded,
     backup_database,
@@ -57,8 +58,10 @@ from app.state import (
     mark_imap_deleted,
     mark_imported,
     mark_retry,
+    require_initialized,
     save_mailbox_state,
     set_system_state,
+    utc_now_iso,
 )
 from app.state import (
     connect as state_connect,
@@ -138,9 +141,7 @@ def start_run_logging(
     日別ログへ保存する。
     """
 
-    log_dir = Path(
-        log_dir
-    )
+    log_dir = runtime_path(log_dir)
 
     log_dir.mkdir(
         parents=True,
@@ -211,51 +212,7 @@ def stop_run_logging(
     log_file.close()
 
 def acquire_run_lock():
-    """
-    Gmail Bridgeのrunを単一起動にする。
-
-    flockなのでプロセス終了時には
-    OSが自動的にロックを解除する。
-    """
-
-    if fcntl is None:
-        raise RuntimeError(t("platform.linux_required"))
-
-    lock_path = Path(
-        "data/gmail_bridge.lock"
-    )
-
-    lock_path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    lock_file = open(
-        lock_path,
-        "a+",
-        encoding="utf-8",
-    )
-
-    try:
-        fcntl.flock(
-            lock_file.fileno(),
-            fcntl.LOCK_EX
-            | fcntl.LOCK_NB,
-        )
-
-    except BlockingIOError:
-        lock_file.close()
-        return None
-
-    lock_file.seek(0)
-    lock_file.truncate()
-
-    lock_file.write(
-        f"pid={os.getpid()}\n"
-    )
-    lock_file.flush()
-
-    return lock_file
+    return acquire_lock()
 
 def get_mailbox(config):
     return config.get(
@@ -314,6 +271,7 @@ def queue_notification(
     mailbox,
     uidvalidity,
     uid,
+    *, commit=True,
 ):
     """
     Gmailへの保存が成功したメールを
@@ -335,6 +293,7 @@ def queue_notification(
         uidvalidity,
         uid,
         provider,
+        commit=commit,
     )
 
 def get_delete_delay_days(config):
@@ -373,7 +332,7 @@ def make_gmail(config):
         fallback="token.json",
     )
 
-    gmail = GmailClient(token_file)
+    gmail = GmailClient(runtime_path(token_file))
     gmail.connect()
 
     return gmail
@@ -386,7 +345,7 @@ def make_drive(config):
         fallback="token.json",
     )
 
-    drive = DriveClient(token_file)
+    drive = DriveClient(runtime_path(token_file))
     drive.connect()
 
     return drive
@@ -410,12 +369,15 @@ def send_system_notification(
     config,
     message,
     title="Gmail Bridge",
+    *, config_loader=None,
 ):
     """
     システム障害・復旧通知。
 
     通知失敗でBridge本体を停止させない。
     """
+    if config_loader is not None:
+        config = config_loader()
     if not notification_enabled(config):
         print(
             t('main.send_system_notification.1')
@@ -539,6 +501,7 @@ def handle_imap_connection_failure(
             t('main.handle_imap_connection_failure.1', v0=f'{error}')
         ),
         title=t("system.alert_title"),
+        config_loader=load_config,
     )
 
     if sent:
@@ -564,6 +527,7 @@ def clear_delete_after(
     mailbox,
     uidvalidity,
     uid,
+    *, commit=True,
 ):
     db.execute(
         """
@@ -579,7 +543,8 @@ def clear_delete_after(
             uid,
         ),
     )
-    db.commit()
+    if commit:
+        db.commit()
 
 def print_message(uid, summary):
     print(
@@ -625,44 +590,17 @@ def finalize_normal(
         config
     )
 
-    queue_notification(
-        db,
-        config,
-        mailbox,
-        uidvalidity,
-        uid,
-    )
-
-    mark_imported(
-        db,
-        mailbox,
-        uidvalidity,
-        uid,
-        gmail_id,
-        original_message_id,
-        delete_delay_days=(
-            delay
-            if delay is not None
-            else 7
-        ),
-    )
-
-    if delay is None:
-        clear_delete_after(
-            db,
-            mailbox,
-            uidvalidity,
-            uid,
+    # Final mail state and the single notification registration commit together.
+    with db:
+        mark_imported(
+            db, mailbox, uidvalidity, uid, gmail_id,
+            original_message_id,
+            delete_delay_days=delay if delay is not None else 7,
+            commit=False,
         )
-        
-    if notification_enabled(config):
-        ensure_notification(
-            db,
-            mailbox,
-            uidvalidity,
-            uid,
-            "ntfy",
-        )
+        if delay is None:
+            clear_delete_after(db, mailbox, uidvalidity, uid, commit=False)
+        queue_notification(db, config, mailbox, uidvalidity, uid, commit=False)
 
 def finalize_fallback(
     gmail,
@@ -712,43 +650,16 @@ def finalize_fallback(
         config
     )
 
-    queue_notification(
-        db,
-        config,
-        mailbox,
-        uidvalidity,
-        uid,
-    )
-
-    mark_drive_fallback(
-        db,
-        mailbox,
-        uidvalidity,
-        uid,
-        gmail_id,
-        delete_delay_days=(
-            delay
-            if delay is not None
-            else 7
-        ),
-    )
-
-    if delay is None:
-        clear_delete_after(
-            db,
-            mailbox,
-            uidvalidity,
-            uid,
+    # Final mail state and the single notification registration commit together.
+    with db:
+        mark_drive_fallback(
+            db, mailbox, uidvalidity, uid, gmail_id,
+            delete_delay_days=delay if delay is not None else 7,
+            commit=False,
         )
-        
-    if notification_enabled(config):
-        ensure_notification(
-            db,
-            mailbox,
-            uidvalidity,
-            uid,
-            "ntfy",
-        )
+        if delay is None:
+            clear_delete_after(db, mailbox, uidvalidity, uid, commit=False)
+        queue_notification(db, config, mailbox, uidvalidity, uid, commit=False)
 
 def upload_fallback_attachments(
     drive,
@@ -942,6 +853,7 @@ def process_uid(
     uidvalidity,
     uid,
     dry_run=False,
+    *, import_origin="run",
 ):
     """
     UID 1通を処理。
@@ -987,7 +899,10 @@ def process_uid(
             mailbox,
             uidvalidity,
             uid,
+            import_origin=import_origin,
         )
+
+        sender, subject = notification_metadata(raw)
 
         original_message_id = (
             get_original_message_id(raw)
@@ -1136,6 +1051,7 @@ def process_uid(
                 uidvalidity,
                 uid,
                 gmail_id,
+                sender=sender, subject=subject, imported_at=utc_now_iso(),
             )
 
             finalize_fallback(
@@ -1217,6 +1133,7 @@ def process_uid(
                 uidvalidity,
                 uid,
                 gmail_id,
+                sender=sender, subject=subject, imported_at=utc_now_iso(),
             )
 
             finalize_fallback(
@@ -1247,6 +1164,7 @@ def process_uid(
             uid,
             gmail_id,
             original_message_id,
+            sender=sender, subject=subject, imported_at=utc_now_iso(),
         )
 
         finalize_normal(
@@ -1300,6 +1218,14 @@ def process_uid(
         return "failed"
 
 
+def _connection_settings(config):
+    return tuple(config.get(section, option, fallback=default) for section, option, default in (
+        ('imap', 'host', ''), ('imap', 'port', '143'), ('imap', 'user', ''),
+        ('imap', 'password', ''), ('imap', 'mailbox', 'INBOX'),
+        ('gmail', 'token_file', 'token.json'),
+    ))
+
+
 def import_uids(
     imap,
     gmail,
@@ -1310,13 +1236,26 @@ def import_uids(
     uidvalidity,
     uids,
     dry_run=False,
+    *, import_origin="run", config_loader=None,
 ):
     imported = 0
     fallback = 0
     skipped = 0
     failed = 0
+    connection_settings = _connection_settings(config)
 
+    if not dry_run and import_origin == 'init':
+        with db:
+            for uid in uids:
+                ensure_message(db, mailbox, uidvalidity, uid, import_origin='init', commit=False)
+    since_notifications = 0
+    last_notifications = time.monotonic()
+    next_notification = 0
     for uid in uids:
+        if config_loader is not None:
+            config = config_loader()
+            if _connection_settings(config) != connection_settings:
+                raise RuntimeError(t('config.connection_changed'))
 
         result = process_uid(
             imap,
@@ -1328,6 +1267,7 @@ def import_uids(
             uidvalidity,
             uid,
             dry_run=dry_run,
+            import_origin=import_origin,
         )
 
         if result == "imported":
@@ -1341,6 +1281,17 @@ def import_uids(
 
         elif result == "failed":
             failed += 1
+
+        since_notifications += 1
+        if not dry_run and import_origin != 'init' and time.monotonic() >= next_notification and (
+                since_notifications >= 5 or time.monotonic() - last_notifications >= 30):
+            result = send_pending_notifications(db, config, config_loader=config_loader or (lambda: config))
+            since_notifications = 0
+            last_notifications = time.monotonic()
+            if result and result.get('failed'):
+                next_notification = last_notifications + 30
+    if not dry_run and import_origin != 'init' and since_notifications and time.monotonic() >= next_notification:
+        send_pending_notifications(db, config, config_loader=config_loader or (lambda: config))
 
     print()
     print(
@@ -1365,11 +1316,12 @@ def confirm_bulk(count, yes=False):
         )
 
 
+@locked_command
 def command_init(args, config):
     mailbox = get_mailbox(config)
 
     imap = make_imap(config)
-    db = state_connect()
+    db = state_connect(create=True)
 
     try:
         print(t('main.command_init.1'))
@@ -1474,6 +1426,9 @@ def command_init(args, config):
         if args.dry_run:
             gmail = None
         else:
+            with db:
+                for uid in uids:
+                    ensure_message(db, mailbox, uidvalidity, uid, import_origin='init', commit=False)
             gmail = make_gmail(
                 config
             )
@@ -1488,6 +1443,7 @@ def command_init(args, config):
             uidvalidity,
             uids,
             dry_run=args.dry_run,
+            import_origin="init", config_loader=load_config,
         )
 
         if not args.dry_run:
@@ -1511,23 +1467,26 @@ def command_run(args, config):
         )
         return
 
-    mailbox = get_mailbox(config)
-
-    imap = make_imap(config)
-    db = state_connect()
-    
-    backup_path = backup_database(
-        db,
-        backup_dir="backups/db",
-        keep_days=14,
-    )
-
-    if backup_path is not None:
-        print(
-            t('main.command_run.2', v0=f'{backup_path}')
-        ) 
-
+    imap = None
+    db = None
     try:
+        mailbox = get_mailbox(config)
+
+        db = state_connect()
+        require_initialized(db, mailbox)
+        imap = make_imap(config)
+    
+        backup_path = backup_database(
+            db,
+            backup_dir="backups/db",
+            keep_days=14,
+        )
+
+        if backup_path is not None:
+            print(
+                t('main.command_run.2', v0=f'{backup_path}')
+            )
+
         try:
             connect_imap_with_retry(
                 imap,
@@ -1557,6 +1516,7 @@ def command_run(args, config):
                 config,
                 t('main.command_run.3'),
                 title=t("system.recovery_title"),
+                config_loader=load_config,
             )
 
             if sent:
@@ -1665,34 +1625,22 @@ def command_run(args, config):
             uidvalidity,
             pending,
             dry_run=args.dry_run,
+            config_loader=load_config,
         )
 
-        if not args.dry_run:
-            notification_result = (
-                send_pending_notifications(
-                    db,
-                    config,
-                )
-            )
-
-            if (
-                notification_result["sent"]
-                or notification_result["failed"]
-            ):
-                print(
-                    t('main.command_run.10', v0=f"{notification_result['sent']}", v1=f"{notification_result['failed']}")
-                )
 
     finally:
-        imap.close()
-        db.close()
+        try:
+            if imap is not None:
+                imap.close()
+        finally:
+            try:
+                if db is not None:
+                    db.close()
+            finally:
+                lock_file.close()
 
-        fcntl.flock(
-            lock_file.fileno(),
-            fcntl.LOCK_UN,
-        )
-        lock_file.close()
-
+@locked_command
 def command_cleanup(args, config):
     # Turning deletion off also suspends previously scheduled deletions.
     if not config.getboolean("imap", "delete_after_import", fallback=False):
@@ -1702,9 +1650,12 @@ def command_cleanup(args, config):
     db = state_connect()
 
     try:
+        require_initialized(db, get_mailbox(config))
         candidates = get_delete_candidates(
             db
         )
+        for candidate in candidates:
+            require_initialized(db, candidate['mailbox'])
 
         print(
             t('main.command_cleanup.1', v0=f'{len(candidates)}')
@@ -1800,6 +1751,7 @@ def command_cleanup(args, config):
     finally:
         db.close()
         
+@locked_command
 def command_status(args, config):
     mailbox = get_mailbox(config)
 
@@ -1972,6 +1924,7 @@ def main():
         )
 
     elif args.command == "run":
+        validate_runtime_files(config)
         (
             log_file,
             original_stdout,

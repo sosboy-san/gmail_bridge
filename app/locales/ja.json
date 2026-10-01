@@ -179,5 +179,19 @@
   "argparse.invalid %(type)s value: %(value)r": "%(type)s型として不正な値: %(value)r",
   "argparse.expected one argument": "引数が1つ必要です",
   "argparse.not allowed with argument %s": "引数 %s と同時には指定できません",
-  "argparse.one of the arguments %s is required": "引数 %s のいずれかが必要です"
+  "argparse.one of the arguments %s is required": "引数 %s のいずれかが必要です",
+  "lock.busy": "別のBridgeコマンドがDBを使用中です。終了後に再実行してください。",
+  "config.invalid_sender_file": "通知の送信元リストを読み込めません。ファイル・INIのセクション・キー・アドレス／ドメインを確認してください。",
+  "config.invalid_token_file": "token.jsonを使用できません。ファイルの存在・OAuth JSONの項目・読み書き権限を確認してください。",
+  "service.ready": "設定と初期化済みDBを確認しました。次の処理周期を開始します。",
+  "service.run_failed": "runが失敗しました。cleanupは成功した処理周期まで延期します。",
+  "service.cleanup_failed": "cleanupが失敗しました。完了は記録せず、次の周期で再試行します。",
+  "service.retry_error": "サービスのローカル処理に失敗しました。ファイルと権限を確認してください。次の周期で再試行します。",
+  "notification.expired": "[NOTIFICATION_EXPIRED] 通知の有効期限が切れました: {reason}",
+  "notification.skipped": "[NOTIFICATION_SKIPPED] 通知を抑止しました: {reason}",
+  "notification.sender": "送信元: {value}",
+  "notification.subject": "件名: {value}",
+  "notification.legacy_ttl": "[NOTIFICATION_CONFIG] ttl_minutes未指定のため、従来互換の無期限再試行が有効です。",
+  "notification.send_failed": "通知送信に失敗しました。再試行待ちの状態を保持します。",
+  "config.connection_changed": "[CONFIG_RESTART_REQUIRED] 接続設定が変更されました。次の処理周期で新しい設定に接続し直します。"
 }

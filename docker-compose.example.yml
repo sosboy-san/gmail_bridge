@@ -1,3 +1,4 @@
+# Legacy individual mounts; BRIDGE_CONFIG_DIR must remain unset.
 services:
   gmail-bridge:
     build: .
@@ -14,12 +15,6 @@ services:
       - type: bind
         source: ./config.ini
         target: /app/config.ini
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ./credentials.json
-        target: /app/credentials.json
         read_only: true
         bind:
           create_host_path: false

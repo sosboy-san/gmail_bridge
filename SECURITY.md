@@ -62,3 +62,7 @@ Review account details, personal/company names, OAuth credentials/tokens, ntfy t
 Use the Git commands above to inspect staged content locally. Create a **Private** repository first, using `gh repo create ... --private` if desired. Check CI and complete live acceptance testing. Only the owner should change visibility to Public after final inspection of files, history and artifacts. See RELEASE_NOTES.md for validation results.
 
 If a secret leaks, revoke/rotate it and then address history and artifacts. Never attach unredacted email, tokens, or logs to public issues. Gmail and Drive receive email content; protect local runtime data and use appropriate organizational authorization.
+
+## v1.1の保存・通知
+
+単一/configには秘密設定、更新可能なtoken、DB（送信元・件名を含む）、backup、logsをまとめて保存します。フォルダ全体を非公開にし、GitHubや公開添付へ置かないでください。sender/subject表示は既定falseです。送信元フィルタはFrom文字列の選別であり、送信者認証ではありません。ntfyの認証・ACLは利用者が管理します。RCは完全タグのみを公開しlatestを更新しません。設定・認証ファイルはイメージへCOPYしません。

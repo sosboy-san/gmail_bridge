@@ -1,0 +1,24 @@
+# v1.1+ only. Prepare ./config yourself; no automatic init or path fallback.
+services:
+  gmail-bridge:
+    build: .
+    image: gmail-bridge:local
+    restart: unless-stopped
+    init: true
+    working_dir: /app
+    user: "${BRIDGE_UID:-1000}:${BRIDGE_GID:-1000}"
+    environment:
+      TZ: "${TZ:-Asia/Tokyo}"
+      BRIDGE_CONFIG_DIR: /config
+    stop_grace_period: 2m
+    volumes:
+      - type: bind
+        source: "${BRIDGE_HOST_CONFIG_DIR:-./config}"
+        target: /config
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -10,7 +10,7 @@ Container StationのUIで管理している場合は該当アプリケーショ�
 
 ## データを残す場合
 
-再導入する可能性があるなら、`config.ini`、`token.json`、`credentials.json`、`data/`、`backups/` を非公開の場所に保持します。ログが必要なら `logs/` も保管します。トークン・メール情報を含むので、保管先のアクセス権を制限してください。
+新方式では専用configフォルダ全体（通知フィルタ、data内cleanup記録、backups、logsを含む）を保管します。再導入する可能性があるなら、`config.ini`、`token.json`、`credentials.json`、`data/`、`backups/` を非公開の場所に保持します。ログが必要なら `logs/` も保管します。トークン・メール情報を含むので、保管先のアクセス権を制限してください。
 
 SQLite状態を失うと、再導入時にGmailへの取り込み済み判定ができず、重複が起こり得ます。新着だけにする再初期化は `init --from-now` ですが、未取り込みの既存メールも無視する操作なので、対象を確認してから実行します。
 

@@ -12,6 +12,8 @@ python -m ruff check app make_token.py tests tools
 python -m unittest discover -s tests -v
 python tools/check_release.py
 docker compose -f docker-compose.example.yml config --quiet
+BRIDGE_VERSION=1.1.0-rc.1 docker compose -f docker-compose.config.image.example.yml config --quiet
+docker compose -f docker-compose.config.example.yml config --quiet
 docker build -t gmail-bridge:check .
 docker run --rm gmail-bridge:check python -m app.main --lang en --help
 ```
@@ -42,3 +44,7 @@ Use Python 3.12 and the commands above. Tests use synthetic messages, temporary 
 To add a language, copy `en.json` to a new language-code filename and translate values without changing keys, placeholders, or HTML. `argparse.*` entries use percent-format placeholders; other messages use braces. Keep ntfy Title translations ASCII. Keep legacy default fallback-label entries unchanged because they identify stored labels. New catalogs are discovered automatically and missing keys fall back to English.
 
 Preserve the separate import and notification states, pending Gmail-ID recovery, and all IMAP deletion guards. External error strings, database states, protocol commands and original mail are not translated. Test schema or workflow changes with existing state and interruption scenarios. Dependency upgrades should be reviewed separately from behavior changes.
+
+## v1.1保守の入口
+
+GitHubを正本として [MAINTENANCE.md](MAINTENANCE.md) の手順を使用します。RC配布は [DOCKER_RELEASE.md](DOCKER_RELEASE.md)。initとmigrationを分離し、TTLの専用UTC時刻と通知の終端状態を維持します。Dockerのない環境は静的確認のみと記録し、環境にDockerを導入して代替しません。英語資料の全面整備は仕様確定後の別工程です。
