@@ -1,5 +1,7 @@
 # Gmail Bridge
 
+開発版v1.1は未公開です。導入・更新資料: [INSTALL.md](INSTALL.md)、[MAINTENANCE.md](MAINTENANCE.md)、[NOTIFICATIONS.md](NOTIFICATIONS.md)。次の実機確認版はv1.1.0-rc.1を予定しています。
+
 正式版: **[v1.0.0](https://github.com/sosboy-san/gmail_bridge/releases/tag/v1.0.0)**（2026-09-30）
 
 外部メールサーバーのIMAPメールを、Gmail APIでGmailへ取り込むPythonアプリです。Gmailの外部POP取得を利用できない環境で、会社メールなどをGmailから確認する用途を想定しています。
@@ -20,6 +22,8 @@ Semantic Versioning（MAJOR.MINOR.PATCH）を採用します。互換性の対�
 | `v1.1.0` | 後方互換を保つ機能追加 |
 | `v2.0.0` | 設定形式・DB・CLIなどの互換性を壊す変更 |
 
+v1.1は既存設定・保存方式を維持しますが、init通知抑止、設定不正時の停止、明示initのみのDB作成は意図的な運用変更です。単純に全挙動互換とは扱わず、更新前に未公開欄を確認してください。RCは実機検証用Pre-releaseで、正式版やlatestとは分離します。
+
 正式版でも既知の制限はあります。[リリースノート](RELEASE_NOTES.md)で検証範囲と導入時の注意を確認してください。
 
 ## できること
@@ -28,9 +32,9 @@ Semantic Versioning（MAJOR.MINOR.PATCH）を採用します。互換性の対�
 - `users.messages.import` で原文を取り込み、出所ラベルを付与。任意でSPAMラベルを解除します。
 - Gmailが添付を拒否した場合だけDriveへ添付を保存し、本文とDriveリンクを含む軽量メールを取り込みます。
 - SQLiteにmailbox・UIDVALIDITY・UID・Gmail IDを記録。取り込み後のラベル処理はpending状態から再開します。
-- ntfy通知はメール取り込みと独立。通知が失敗してもメールを再importせず、pending通知だけを次回再送します。
+- ntfy通知はメール取り込みと独立。通知が失敗してもメールを再importせず、pending通知を最新設定とTTLで再判定します。送信元・件名表示、完全一致フィルタ、期限切れ抑止に対応します（v1.1）。
 - IMAP接続は最大3回試行（待機10秒、30秒）。障害通知の重複を抑え、接続復旧時に復旧通知を送ります。
-- runの `flock`、日次SQLiteバックアップ、日別runログ、猶予期間を過ぎた元IMAPメールのcleanupを備えます。
+- init/run/cleanup/status・migrationの共通 `flock`（v1.1）、日次SQLiteバックアップ、日別runログ、猶予期間を過ぎた元IMAPメールのcleanupを備えます。
 
 ## 処理の流れ
 
@@ -43,8 +47,8 @@ flowchart TD
     D --> F[本文とDriveリンクのメールをimport]
     F --> P
     P --> L[ラベル・未読状態を反映し取り込み完了]
-    L --> N[独立したntfy通知キュー]
-    N -->|失敗| R[次回runで通知だけ再送]
+    L -->|run由来・通知有効| N[独立したntfy通知キュー]
+    N -->|失敗| R[次回runでTTL・フィルタ再判定]
     L --> C[猶予期間後のcleanup]
     C --> V[UIDVALIDITY・UID・削除フラグ確認後に元メール削除]
 ```
@@ -71,13 +75,17 @@ app/
   gmail_client.py          Gmail import・ラベル
   drive_client.py          Driveへの退避
   mime_fallback.py         軽量メールの組み立て
-  state.py                 SQLite・通知状態・バックアップ
+  state.py                 SQLite・通知状態・migration・バックアップ
+  paths.py, locking.py     保存ルート・共通排他
+  notification_metadata.py 送信元・件名の抽出と安全な表示
   notification_service.py, ntfy_client.py
   oauth.py                 共通OAuthスコープ
   service.py               コンテナ常駐ループ
 make_token.py              PCのブラウザでOAuth認証
 config.example.ini        秘密情報のない設定例
-docker-compose.example.yml
+notification_senders.example.ini
+docker-compose*.example.yml 新旧保存方式・build/pull用
+MAINTENANCE.md, NOTIFICATIONS.md
 tests/                    外部接続しない回帰テスト
 tools/check_release.py    公開対象検査・配布ZIP作成
 ```
@@ -95,11 +103,11 @@ tools/check_release.py    公開対象検査・配布ZIP作成
 - 1つの設定・DBは1つのIMAPアカウントとGmailアカウント専用です。アカウントを変更して同じDBを使わないでください。
 - Gmail側の成功とSQLiteへのID保存の間には小さなクラッシュ窓があり、厳密なexactly-once保証ではありません。Driveアップロード直後も同様です。
 - UIDPLUS非対応サーバーではEXPUNGE直前に他の `\Deleted` がないことを確認しますが、他クライアントとの競合を完全には排除できません。
-- runだけをロックします。init・cleanupを手動実行する際は常駐を停止し、複数コンテナで同じDBを共有しないでください。
+- v1.1は共通ロックを使います。未初期化待機中はConsoleからinitできます。初期化済み環境の手動init・cleanupは常駐停止を推奨し、複数サービスで同じDBを共有しないでください。Docker/QNAPのv1.1実動作は未検証です。
 
 ## English
 
-Gmail Bridge imports mail from an external IMAP mailbox through the Gmail API. The original implementation has been used on QNAP Container Station. This release adds Japanese/English catalogs, installation documentation, packaging safeguards, and offline regression tests while preserving the import and notification state machine.
+Gmail Bridge imports mail from an external IMAP mailbox through the Gmail API. The original implementation has been used on QNAP Container Station. This release adds Japanese/English catalogs, installation documentation, packaging safeguards, and offline regression tests with separate import and notification states; v1.1 introduces the behavior changes described in the release notes.
 
 Read [Installation](INSTALL.md#english), [Uninstall](UNINSTALL.md#english), [Troubleshooting](TROUBLESHOOTING.md#english), and [Release notes](RELEASE_NOTES.md) before deployment. QNAP startup and resumed imports have been reported by the owner; verify the acceptance checks for your own deployment.
 
@@ -117,7 +125,7 @@ Set `language = en` under `[general]` or place `--lang en` before the CLI subcom
 
 ## Gmail側の整理機能と取り込み対象
 
-Gmailへの保存には `users.messages.import` を使い、通常受信に近いスキャン・分類処理を通します。GmailへIMAPで単純にコピーする方式ではありません。送信者・宛先・件名などのフィルタはGmail側で設定してください。取り込み後にBridgeが出所ラベルや既読・未読を反映するため、フィルタで既読にする操作などは通常受信と同じ最終結果になるとは限りません。利用するルールは少数のメールで確認してください。
+Gmailへの保存には `users.messages.import` を使い、通常受信に近いスキャン・分類処理を通します。GmailへIMAPで単純にコピーする方式ではありません。メール整理用の送信者・宛先・件名フィルタはGmail側で設定してください。通常ntfy通知の対象選択は [NOTIFICATIONS.md](NOTIFICATIONS.md) の送信元フィルタを使用します。取り込み後にBridgeが出所ラベルや既読・未読を反映するため、フィルタで既読にする操作などは通常受信と同じ最終結果になるとは限りません。利用するルールは少数のメールで確認してください。
 
 標準では元サーバーのINBOXのみが対象です。`[imap] mailbox` で別のフォルダを指定できますが、1設定につき1フォルダで、サブフォルダを再帰的には巡回しません。取得前に対象フォルダ外へ移動されたメールは取り込まれません。複数のIMAPアカウントは設定・DB・実行環境を分けて運用してください。取り込み後の既読や整理操作を元サーバーへ戻す双方向同期ではありません。
 
@@ -131,4 +139,6 @@ Development, documentation, and release preparation were supported with assistan
 
 ## Docker Hubイメージの利用
 
-取得用の `docker-compose.image.example.yml` と正式版タグ限定の自動公開を用意しています。公開先は `sosboy/gmail-bridge`、既定の固定バージョンは `1.0.0` です。**[Docker Hubで公開済み](https://hub.docker.com/r/sosboy/gmail-bridge)です（linux/amd64・linux/arm64）。** 導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。
+旧方式の取得用 `docker-compose.image.example.yml` と、v1.1用の単一/config方式 `docker-compose.config.image.example.yml` を用意しています。公開先は `sosboy/gmail-bridge`、既定の固定バージョンは `1.0.0` です。**[Docker Hubで公開済み](https://hub.docker.com/r/sosboy/gmail-bridge)です（linux/amd64・linux/arm64）。** 導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。
+
+English v1.1 note: shared locking, explicit init after safe startup waiting, optional sender/subject filtering and TTL are new. Init no longer queues ordinary notifications. Full English documentation revision is deferred; the Japanese v1.1 guides are current.

@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing stable tag, e.g. v1.0.0 (never main)'
+        description: 'Existing stable or RC tag, e.g. v1.1.0-rc.1 (never main)'
         required: true
         type: string
 permissions:
@@ -22,6 +22,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       minor: ${{ steps.release.outputs.minor }}
       major: ${{ steps.release.outputs.major }}
+      rc: ${{ steps.release.outputs.rc }}
     steps:
       - uses: actions/github-script@v7
         id: release
@@ -29,8 +30,10 @@ jobs:
           script: |
             const tag = context.eventName === 'workflow_dispatch' ? context.payload.inputs.tag : context.ref.replace('refs/tags/', '');
             const pattern = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
-            const match = tag.match(pattern);
-            if (!match || match[1] === '0') throw new Error('Only stable vMAJOR.MINOR.PATCH tags with MAJOR >= 1 are publishable');
+            const rcPattern = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc\.([1-9][0-9]*)$/;
+            const rc = rcPattern.test(tag);
+            const match = tag.match(rc ? rcPattern : pattern);
+            if (!match || match[1] === '0') throw new Error('Only stable or rc.N tags with MAJOR >= 1 are publishable');
             const tags = await github.paginate(github.rest.repos.listTags, {...context.repo, per_page: 100});
             const selected = tags.find(t => t.name === tag);
             if (!selected) throw new Error('Tag must already exist');
@@ -39,7 +42,9 @@ jobs:
               for (let i = 0; i < 3; i++) { if (av[i] !== bv[i]) return av[i] > bv[i] ? 1 : -1; }
               return 0;
             };
-            if (tags.some(t => pattern.test(t.name) && compare(t.name, tag) > 0)) throw new Error('Older release blocked to prevent rolling back floating Docker tags');
+            if (!rc && tags.some(t => pattern.test(t.name) && compare(t.name, tag) > 0)) throw new Error('Older release blocked to prevent rolling back floating Docker tags');
+            if (rc && tags.some(t => pattern.test(t.name) && compare(t.name, tag.split('-')[0]) >= 0)) throw new Error('RC blocked: matching or newer stable tag already exists');
+            core.setOutput('rc', String(rc));
             core.setOutput('tag', tag);
             core.setOutput('sha', selected.commit.sha);
             core.setOutput('version', tag.slice(1));
@@ -71,7 +76,12 @@ jobs:
           PLATFORM: linux/${{ matrix.arch }}
         run: |
           docker run --rm --platform "$PLATFORM" gmail-bridge:check python -m app.main --lang en --help
-          docker run --rm --platform "$PLATFORM" -e TZ=Asia/Tokyo --mount type=bind,source="$PWD/tests",target=/app/tests,readonly --mount type=bind,source="$PWD/make_token.py",target=/app/make_token.py,readonly gmail-bridge:check python -m unittest discover -s /app/tests -v
+          checks=(--mount type=bind,source="$PWD/tests",target=/app/tests,readonly --mount type=bind,source="$PWD/make_token.py",target=/app/make_token.py,readonly)
+          # Older stable tags may predate this workflow; preserve manual bootstrap.
+          if [[ -d "$PWD/.github/workflows" ]]; then
+            checks+=(--mount type=bind,source="$PWD/.github/workflows",target=/app/.github/workflows,readonly)
+          fi
+          docker run --rm --platform "$PLATFORM" -e TZ=Asia/Tokyo "${checks[@]}" gmail-bridge:check python -m unittest discover -s /app/tests -v
   publish:
     needs: [validate, test]
     runs-on: ubuntu-latest
@@ -110,17 +120,30 @@ jobs:
             cat /tmp/image-error
             exit 1
           fi
+      - name: Select distribution tags
+        id: distribution
+        env:
+          RC: ${{ needs.validate.outputs.rc }}
+          MINOR: ${{ needs.validate.outputs.minor }}
+          MAJOR: ${{ needs.validate.outputs.major }}
+        shell: bash
+        run: |
+          versions=("$VERSION")
+          if [[ "$RC" == false ]]; then
+            versions+=("$MINOR" "$MAJOR" latest)
+          fi
+          {
+            echo 'tags<<TAG_LIST'
+            for tag in "${versions[@]}"; do echo "$IMAGE:$tag"; done
+            echo TAG_LIST
+          } >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         id: build
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ env.IMAGE }}:${{ needs.validate.outputs.version }}
-            ${{ env.IMAGE }}:${{ needs.validate.outputs.minor }}
-            ${{ env.IMAGE }}:${{ needs.validate.outputs.major }}
-            ${{ env.IMAGE }}:latest
+          tags: ${{ steps.distribution.outputs.tags }}
           labels: |
             org.opencontainers.image.version=${{ needs.validate.outputs.version }}
             org.opencontainers.image.revision=${{ needs.validate.outputs.sha }}
@@ -132,11 +155,14 @@ jobs:
         run: echo "$IMAGE:$VERSION — $DIGEST" >> "$GITHUB_STEP_SUMMARY"
       - name: Verify all tags reference the published index
         env:
+          RC: ${{ needs.validate.outputs.rc }}
           DIGEST: ${{ steps.build.outputs.digest }}
           MINOR: ${{ needs.validate.outputs.minor }}
           MAJOR: ${{ needs.validate.outputs.major }}
         run: |
-          for tag in "$VERSION" "$MINOR" "$MAJOR" latest; do
+          versions=("$VERSION")
+          if [[ "$RC" == false ]]; then versions+=("$MINOR" "$MAJOR" latest); fi
+          for tag in "${versions[@]}"; do
             docker buildx imagetools inspect "$IMAGE:$tag" | grep -F "$DIGEST"
           done
           docker buildx imagetools inspect "$IMAGE@$DIGEST" --raw > /tmp/manifest.json

@@ -1,5 +1,24 @@
 # リリースノート / Release notes
 
+## v1.1.0（開発中・未公開 / Unreleased）
+
+- **initの通常メール通知を停止**: `--all / --latest / --since / --uid` による取り込みは通常ntfy通知を生成しません。選択UIDのinit由来を保存し、中断後にrunで再開しても抑止します。v1.0.0からの意図的な動作変更です。既存DBの移行でinitを実行することはありません。
+- **通知内容と対象を選択**: 送信元アドレス・件名は個別に表示可能（既定false）。off / allowlist / blocklist / combinedのモードで、アドレス・ドメインの完全一致を使用します。combinedでは除外優先。正規表現やサブドメインの自動一致はありません。
+- **通知の鮮度**: `ttl_minutes` 未指定／0は従来互換の無期限再試行。新しい設定例では15分を推奨値として明示します。TTLはGmail API成功時に保存する専用UTC時刻から計算し、通知はsent / suppressed / expiredから復活しません。
+- **DBと常駐運用**: 専用バックアップ付きのトランザクション移行、共通ロック、明示的なinitのみのDB作成、安全待機・設定修正後の復帰を追加。空・破損・未知のDBは異常として停止します。
+- **設定エラー**: 通知が有効な場合の無効なprovider / topic / URLや、有効な送信元フィルタのファイル不正もサービスの待機／停止対象です。通知だけに異常を閉じ込めて取り込みを継続する旧挙動からの変更です。無効な通知／offのフィルタではリストファイルを読みません。
+- **保存先**: `BRIDGE_CONFIG_DIR` 指定時はその配下だけを使用し、旧パスへfallbackしません。未指定時は従来方式です。
+
+- **配布・運用資料**: 旧個別マウントを維持し、v1.1向け単一/configのbuild/pull用Composeを追加。新方式はバージョン明示必須。定常運用で不要なcredentialsマウントを削除。初回安全待機→Console init→自動復帰、更新前一式backup、migration、rollback、通知・障害対応を日本語資料へ反映しました。
+- **RC配布準備**: vMAJOR.MINOR.PATCH-rc.Nを公開ワークフローで受け付け、RCは完全タグのみ、正式版のlatest/major/minorは更新しません。v1.1.0-rc.1は未作成・未公開です。
+- **Phase 5検証**: 全94件のオフラインテスト、lint、公開前チェック、4種類のCompose構造の静的確認を実施。DockerなしのためDocker compose config・build・実動作は未検証。環境へのDocker導入は行っていません。英語資料の全面整備は仕様確定後に実施します。
+
+**Validation status:** Phase 5 Compose and Japanese installation/upgrade/maintenance documentation are complete. Static/offline validation only; Docker/QNAP acceptance tests and the complete English documentation revision remain pending. No v1.1.0 tag, GitHub Release or Docker Hub image has been published.
+
+**Behavior changes for existing users:** init imports no longer create ordinary ntfy notifications, including messages later resumed by run. Notification-specific configuration errors now stop/defer service operations when that feature is enabled. Database creation is reserved for explicit init. These changes are intentional; schema migration never performs init.
+
+**Notification compatibility:** sender/subject display defaults to false and filtering defaults to off. An omitted `ttl_minutes` or explicit zero preserves unlimited retries; the new example recommends 15 minutes. Exact address/domain rules are case insensitive, combined mode gives block rules priority, and subdomains must be listed explicitly. Operational outage/recovery alerts remain separate from ordinary sender filters and TTL; invalid current configuration blocks sending either kind of alert.
+
 ## v1.0.0 - 2026-09-30
 
 初回正式リリースです。`main` は開発最新版、GitHub Releaseとタグは正式版として管理します。

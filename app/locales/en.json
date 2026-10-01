@@ -179,5 +179,19 @@
   "argparse.invalid %(type)s value: %(value)r": "invalid %(type)s value: %(value)r",
   "argparse.expected one argument": "expected one argument",
   "argparse.not allowed with argument %s": "not allowed with argument %s",
-  "argparse.one of the arguments %s is required": "one of the arguments %s is required"
+  "argparse.one of the arguments %s is required": "one of the arguments %s is required",
+  "lock.busy": "Another Bridge command is using the database. Try again after it finishes.",
+  "config.invalid_sender_file": "Cannot read notification sender rules. Check the file, INI sections, keys and address/domain values.",
+  "config.invalid_token_file": "Cannot use token.json. Check its presence, OAuth JSON fields and read/write permissions.",
+  "service.ready": "Configuration and initialized database are ready; starting the next cycle.",
+  "service.run_failed": "Run failed; cleanup is deferred until a successful cycle.",
+  "service.cleanup_failed": "Cleanup failed; completion was not recorded. Retrying next cycle.",
+  "service.retry_error": "Local service operation failed. Check files and permissions; retrying next cycle.",
+  "notification.expired": "[NOTIFICATION_EXPIRED] Notification expired: {reason}",
+  "notification.skipped": "[NOTIFICATION_SKIPPED] Notification suppressed: {reason}",
+  "notification.sender": "From: {value}",
+  "notification.subject": "Subject: {value}",
+  "notification.legacy_ttl": "[NOTIFICATION_CONFIG] ttl_minutes is not configured; legacy unlimited retry behavior is active.",
+  "notification.send_failed": "Notification send failed; retry remains pending.",
+  "config.connection_changed": "[CONFIG_RESTART_REQUIRED] Connection settings changed; resume with new connections on the next cycle."
 }

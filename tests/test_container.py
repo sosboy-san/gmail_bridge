@@ -40,6 +40,7 @@ class ContainerTimezoneTests(unittest.TestCase):
         before = datetime(2024, 1, 1, 14, 59, tzinfo=timezone.utc).timestamp()
         after = datetime(2024, 1, 1, 15, 0, tzinfo=timezone.utc).timestamp()
         with tempfile.TemporaryDirectory() as directory, \
+                patch.object(service, 'prepare_cycle'), \
                 patch.object(service, 'MARKER', Path(directory) / 'last_cleanup_date'), \
                 patch.object(service.subprocess, 'run', return_value=SimpleNamespace(returncode=0)) as run, \
                 patch.object(service, 'datetime') as clock:

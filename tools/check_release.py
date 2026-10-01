@@ -19,7 +19,9 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 ROOT_FILES = (
     '.gitignore', '.dockerignore', '.gitattributes', 'Dockerfile',
-    'docker-compose.example.yml', 'docker-compose.image.example.yml', 'DOCKER_RELEASE.md', 'config.example.ini', 'requirements.txt',
+    'docker-compose.example.yml', 'docker-compose.image.example.yml',
+    'docker-compose.config.example.yml', 'docker-compose.config.image.example.yml',
+    'MAINTENANCE.md', 'NOTIFICATIONS.md', 'DOCKER_RELEASE.md', 'config.example.ini', 'notification_senders.example.ini', 'requirements.txt',
     'requirements-dev.txt', 'pyproject.toml', 'make_token.py', 'LICENSE',
     'README.md', 'INSTALL.md', 'UNINSTALL.md', 'TROUBLESHOOTING.md',
     'CONTRIBUTING.md', 'SECURITY.md', 'RELEASE_NOTES.md',
@@ -30,7 +32,8 @@ def public_files():
     paths = [ROOT / name for name in ROOT_FILES]
     paths.extend(ROOT / 'docs' / name for name in (
         'index.html', 'privacy.html', 'terms.html', 'style.css',
-        '.nojekyll', 'PUBLISHING.md',
+        '.nojekyll', 'PUBLISHING.md', 'V1_1_0_PHASE2.md', 'V1_1_0_PHASE3.md',
+        'V1_1_0_PHASE4.md', 'V1_1_0_PHASE5.md', 'V1_1_0_RC.md',
     ))
     for directory, pattern in (('app', '*.py'), ('app/locales', '*.json'),
                                ('tests', '*.py'), ('tools', '*.py'),
@@ -62,7 +65,9 @@ def inspect():
                 if pattern.search(line):
                     findings.append(f'{path.relative_to(ROOT)}:{number}: {label}')
             for match in email_pattern.finditer(line):
-                if match.group(1) not in ('example.invalid', 'example.com', 'example.org', 'example.net'):
+                domain = match.group(1).lower()
+                examples = ('example.invalid', 'example.com', 'example.org', 'example.net')
+                if not any(domain == example or domain.endswith('.' + example) for example in examples):
                     findings.append(f'{path.relative_to(ROOT)}:{number}: non-example email address')
         if path.suffix == '.py':
             tree = ast.parse(source)
@@ -112,18 +117,35 @@ def inspect():
     assert bridge['working_dir'] == '/app'
     assert 'command' not in bridge and 'entrypoint' not in bridge
     mounts = {mount['target']: mount for mount in bridge['volumes']}
-    assert set(mounts) == {f'/app/{name}' for name in ('config.ini', 'credentials.json', 'token.json',
+    assert set(mounts) == {f'/app/{name}' for name in ('config.ini', 'token.json',
                                                        'data', 'backups', 'logs')}
     assert all(mount['type'] == 'bind' and mount['bind']['create_host_path'] is False
                for mount in mounts.values())
     assert mounts['/app/config.ini']['read_only']
-    assert mounts['/app/credentials.json']['read_only']
     assert not mounts['/app/token.json'].get('read_only', False)
     assert not bridge.get('ports')
     image_compose = yaml.safe_load((ROOT / 'docker-compose.image.example.yml').read_text(encoding='utf-8'))
     image_bridge = image_compose['services']['gmail-bridge']
     assert 'build' not in image_bridge
     assert {k: v for k, v in bridge.items() if k not in ('build', 'image')} == {k: v for k, v in image_bridge.items() if k != 'image'}
+    config_source = yaml.safe_load((ROOT / 'docker-compose.config.example.yml').read_text(encoding='utf-8'))['services']['gmail-bridge']
+    config_image = yaml.safe_load((ROOT / 'docker-compose.config.image.example.yml').read_text(encoding='utf-8'))['services']['gmail-bridge']
+    assert config_source['environment']['BRIDGE_CONFIG_DIR'] == '/config'
+    assert 'BRIDGE_CONFIG_DIR' not in bridge['environment']
+    assert config_source['working_dir'] == '/app'
+    assert config_source['restart'] == 'unless-stopped'
+    assert 'command' not in config_source and 'entrypoint' not in config_source
+    assert not config_source.get('ports')
+    assert config_source['volumes'] == [{
+        'type': 'bind', 'source': '${BRIDGE_HOST_CONFIG_DIR:-./config}',
+        'target': '/config', 'bind': {'create_host_path': False},
+    }]
+    assert 'build' not in config_image
+    assert '${BRIDGE_VERSION:?' in config_image['image']
+    assert config_image['image'].startswith('${DOCKERHUB_NAMESPACE:-sosboy}/gmail-bridge:')
+    assert {k: v for k, v in config_source.items() if k not in ('build', 'image')} == {
+        k: v for k, v in config_image.items() if k != 'image'
+    }
     dockerfile = (ROOT / 'Dockerfile').read_text(encoding='utf-8')
     assert 'CMD ["python", "-m", "app.service"]' in dockerfile
     assert 'install -y --no-install-recommends tzdata' in dockerfile

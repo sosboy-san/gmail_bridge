@@ -76,7 +76,7 @@ class StateFlowTests(IsolatedTest):
         db_path = patch.object(state, 'DB_PATH', self.directory / 'state.db')
         db_path.start()
         self.addCleanup(db_path.stop)
-        self.db = state.connect()
+        self.db = state.connect(create=True)
         self.addCleanup(self.db.close)
         self.config = settings()
         self.imap = MagicMock()
@@ -95,12 +95,12 @@ class StateFlowTests(IsolatedTest):
         self.gmail.mark_unread.assert_called_once()
         with patch.object(notification_service, 'make_ntfy_client') as factory:
             factory.return_value.send.side_effect = OSError('synthetic outage')
-            self.assertEqual(notification_service.send_pending_notifications(self.db, self.config),
+            self.assertEqual(notification_service.send_pending_notifications(self.db, self.config, config_loader=lambda: self.config),
                              {'sent': 0, 'failed': 1})
             self.assertEqual(len(state.get_pending_notifications(self.db)), 1)
             self.assertEqual(self.process(), 'skipped')
             factory.return_value.send.side_effect = None
-            self.assertEqual(notification_service.send_pending_notifications(self.db, self.config),
+            self.assertEqual(notification_service.send_pending_notifications(self.db, self.config, config_loader=lambda: self.config),
                              {'sent': 1, 'failed': 0})
         self.gmail.import_message.assert_called_once()
         self.assertTrue(state.is_processed(self.db, 'INBOX', '123', 1))
@@ -140,7 +140,8 @@ class StateFlowTests(IsolatedTest):
     def test_notification_initialization_failure_preserves_import(self):
         self.process()
         self.config['notification']['topic'] = ''
-        notification_service.send_pending_notifications(self.db, self.config)
+        with self.assertRaises(configuration.ConfigError):
+            notification_service.send_pending_notifications(self.db, self.config, config_loader=lambda: self.config)
         self.assertEqual(self.process(), 'skipped')
         self.assertEqual(len(state.get_pending_notifications(self.db)), 1)
 
@@ -175,6 +176,7 @@ class StateFlowTests(IsolatedTest):
                 patch.object(main, 'fcntl', MagicMock()), \
                 patch.object(main, 'make_imap', return_value=self.imap), \
                 patch.object(main, 'backup_database', return_value=None), \
+                patch.object(main, 'send_pending_notifications', return_value={'sent': 0, 'failed': 0}), \
                 patch.object(main, 'send_system_notification', return_value=True) as send:
             main.command_run(args, self.config)
             main.command_run(args, self.config)
@@ -194,6 +196,7 @@ class StateFlowTests(IsolatedTest):
 
     def test_cleanup_failure_is_not_marked_deleted(self):
         self.config['imap']['delete_after_import'] = 'true'
+        state.save_mailbox_state(self.db, 'INBOX', '123')
         self.process()
         self.db.execute("UPDATE messages SET delete_after='2000-01-01T00:00:00+00:00'")
         self.db.commit()
@@ -371,7 +374,8 @@ class PackagingTests(IsolatedTest):
             self.assertEqual(result.returncode, 2)
 
     def test_cleanup_marker_only_after_success_and_retry_next_cycle(self):
-        with patch.object(service, 'MARKER', self.directory / 'last_cleanup_date'), \
+        with patch.object(service, 'prepare_cycle'), \
+                patch.object(service, 'MARKER', self.directory / 'last_cleanup_date'), \
                 patch.object(service.subprocess, 'run') as run:
             run.side_effect = [SimpleNamespace(returncode=0), SimpleNamespace(returncode=1)]
             service.run_cycle()

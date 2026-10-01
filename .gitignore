@@ -1,6 +1,8 @@
 # Local configuration, credentials, and runtime data
+/config/
 *.ini
 !config.example.ini
+!notification_senders.example.ini
 *credentials*.json
 *client_secret*.json
 *token*.json

@@ -1,8 +1,10 @@
 import sqlite3
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.i18n import t
+from app.paths import runtime_path
 
 DB_PATH = Path("data/state.db")
 
@@ -15,12 +17,27 @@ def utc_now_iso():
     return utc_now().isoformat()
 
 
-def connect():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+SCHEMA_VERSION = 1  # Independent of the application release version.
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
 
+class DatabaseError(RuntimeError):
+    """An existing database is unsafe to use; never replace or initialize it."""
+
+
+class DatabaseMissing(RuntimeError):
+    """No database exists. Only an explicit init may create one."""
+
+
+class DatabaseUninitialized(RuntimeError):
+    """The database is valid, but the selected mailbox has not completed init."""
+
+
+def require_initialized(conn, mailbox):
+    if get_mailbox_state(conn, mailbox) is None:
+        raise DatabaseUninitialized('[WAITING_FOR_INIT] Mailbox has not completed initialization.')
+
+
+def _create_legacy_schema(conn):
     # -------------------------------------------------
     # v0.2 メインメッセージテーブル
     # -------------------------------------------------
@@ -141,12 +158,153 @@ def connect():
         )
     """)
 
-    conn.commit()
 
-    # v0.1からの移行
-    migrate_v01(conn)
 
-    return conn
+def _schema_signature(conn, table):
+    return {row[1]: (row[2].upper(), row[3], row[4], row[5])
+            for row in conn.execute(f'PRAGMA table_info("{table}")')}
+
+
+def _expected_schema(version):
+    reference = sqlite3.connect(':memory:')
+    try:
+        _create_legacy_schema(reference)
+        if version == SCHEMA_VERSION:
+            _add_notification_columns(reference)
+        return {table: _schema_signature(reference, table) for table in
+                ('messages', 'drive_files', 'mailbox_state', 'notifications', 'system_state')}
+    finally:
+        reference.close()
+
+
+def _validate_schema(conn, version):
+    expected = _expected_schema(version)
+    actual = {row[0] for row in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+    )}
+    if actual - (set(expected) | {'processed_messages'}):
+        raise DatabaseError('[DB_ERROR] Unrecognized database tables.')
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type IN ('trigger', 'view') LIMIT 1").fetchone():
+        raise DatabaseError('[DB_ERROR] Unrecognized database triggers or views.')
+    if 'processed_messages' in actual:
+        required = {'mailbox', 'uidvalidity', 'uid', 'gmail_message_id', 'imported_at'}
+        if not required.issubset(_schema_signature(conn, 'processed_messages')):
+            raise DatabaseError('[DB_ERROR] Unrecognized legacy database schema.')
+    for table, signature in expected.items():
+        if version == 0 and 'processed_messages' in actual and table not in actual:
+            continue
+        if _schema_signature(conn, table) != signature:
+            raise DatabaseError('[DB_ERROR] Unrecognized database schema.')
+
+
+def _add_notification_columns(conn):
+    conn.execute('ALTER TABLE messages ADD COLUMN notification_sender TEXT')
+    conn.execute('ALTER TABLE messages ADD COLUMN notification_subject TEXT')
+    conn.execute('ALTER TABLE messages ADD COLUMN notification_imported_at TEXT')
+    conn.execute("ALTER TABLE messages ADD COLUMN import_origin TEXT NOT NULL DEFAULT 'unknown'")
+    conn.execute('ALTER TABLE notifications ADD COLUMN notification_imported_at TEXT')
+    # Preserve historical timestamps. Never substitute migration time.
+    conn.create_function('_historical_timestamp', 1, _historical_timestamp)
+    try:
+        conn.execute('UPDATE messages SET notification_imported_at = _historical_timestamp(imported_at)')
+        conn.execute("""
+            UPDATE notifications SET notification_imported_at = COALESCE(
+                (SELECT messages.notification_imported_at FROM messages
+                 WHERE messages.mailbox = notifications.mailbox
+                   AND messages.uidvalidity = notifications.uidvalidity
+                   AND messages.uid = notifications.uid), _historical_timestamp(created_at))
+        """)
+    finally:
+        conn.create_function('_historical_timestamp', 1, None)
+
+
+def _historical_timestamp(value):
+    if not isinstance(value, str):
+        return None
+    try:
+        stamp = datetime.fromisoformat(value)
+        if stamp.tzinfo is None:
+            return None
+        return stamp.astimezone(timezone.utc).isoformat()
+    except (ValueError, OverflowError):
+        return None
+
+
+def _migration_backup(conn):
+    directory = runtime_path('backups/db/migrations')
+    directory.mkdir(parents=True, exist_ok=True)
+    name = f"state_before_schema_{SCHEMA_VERSION}_{utc_now().strftime('%Y%m%dT%H%M%S%fZ')}_{uuid.uuid4().hex}.db"
+    destination = directory / name
+    temporary = destination.with_suffix('.tmp')
+    try:
+        backup = sqlite3.connect(temporary)
+        try:
+            conn.backup(backup)
+            if backup.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                raise DatabaseError('[DB_MIGRATION_ERROR] Backup integrity check failed.')
+        finally:
+            backup.close()
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return destination
+
+
+def connect(*, create=False):
+    """Open validated state; command callers hold the common Bridge lock.
+
+    create=True is reserved for explicit init (and isolated test setup).
+    Existing files, including empty files, are never treated as new databases.
+    """
+    db_path = runtime_path(DB_PATH)
+    exists = db_path.exists()
+    if not exists and not create:
+        raise DatabaseMissing('[WAITING_FOR_INIT] Database does not exist; run init explicitly.')
+    if exists and (not db_path.is_file() or db_path.stat().st_size == 0):
+        raise DatabaseError('[DB_ERROR] Existing database is empty or is not a regular file.')
+    if not exists:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = None
+    try:
+        uri = db_path.resolve().as_uri() + ('?mode=rw' if exists else '?mode=rwc')
+        conn = sqlite3.connect(uri, uri=True)
+        conn.row_factory = sqlite3.Row
+        if conn.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+            raise DatabaseError('[DB_ERROR] Database integrity check failed.')
+        version = conn.execute('PRAGMA user_version').fetchone()[0]
+        if version not in (0, SCHEMA_VERSION):
+            raise DatabaseError('[DB_ERROR] Unsupported database schema version.')
+        if not exists:
+            conn.execute('BEGIN IMMEDIATE')
+            _create_legacy_schema(conn)
+            _add_notification_columns(conn)
+            conn.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+            conn.commit()
+        elif version == 0:
+            _validate_schema(conn, 0)
+            try:
+                _migration_backup(conn)
+                conn.execute('BEGIN IMMEDIATE')
+                _create_legacy_schema(conn)
+                migrate_v01(conn, commit=False)
+                _add_notification_columns(conn)
+                _validate_schema(conn, SCHEMA_VERSION)
+                conn.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise DatabaseError('[DB_MIGRATION_ERROR] Backup or migration failed; original schema and state retained.') from None
+        else:
+            _validate_schema(conn, SCHEMA_VERSION)
+        return conn
+    except (sqlite3.Error, OSError):
+        if conn is not None:
+            conn.close()
+        raise DatabaseError('[DB_ERROR] Database could not be opened, validated or backed up.') from None
+    except BaseException:
+        if conn is not None:
+            conn.close()
+        raise
 
 
 def table_exists(conn, table_name):
@@ -163,7 +321,7 @@ def table_exists(conn, table_name):
     return row is not None
 
 
-def migrate_v01(conn):
+def migrate_v01(conn, *, commit=True):
     """
     v0.1 processed_messages -> v0.2 messages
 
@@ -266,9 +424,10 @@ def migrate_v01(conn):
 
         migrated += 1
 
-    conn.commit()
+    if commit:
+        conn.commit()
 
-    if migrated:
+    if migrated and commit:
         print(
             t('state.migrate_v01.1', v0=f'{migrated}')
         )
@@ -305,7 +464,10 @@ def ensure_message(
     mailbox,
     uidvalidity,
     uid,
+    *, import_origin=None, commit=True,
 ):
+    if import_origin not in (None, 'unknown', 'run', 'init'):
+        raise ValueError('Invalid import origin.')
     now = utc_now_iso()
 
     conn.execute(
@@ -316,9 +478,10 @@ def ensure_message(
             uid,
             status,
             created_at,
-            updated_at
+            updated_at,
+            import_origin
         )
-        VALUES (?, ?, ?, 'pending', ?, ?)
+        VALUES (?, ?, ?, 'pending', ?, ?, ?)
         """,
         (
             mailbox,
@@ -326,10 +489,23 @@ def ensure_message(
             uid,
             now,
             now,
+            import_origin or "unknown",
         ),
     )
 
-    conn.commit()
+    if import_origin is not None:
+        if import_origin == 'init':
+            conn.execute("""UPDATE messages SET import_origin = 'init'
+                WHERE mailbox = ? AND uidvalidity = ? AND uid = ?
+                  AND status NOT IN ('imported', 'drive_fallback', 'ignored')""",
+                         (mailbox, uidvalidity, uid))
+        else:
+            conn.execute("""UPDATE messages SET import_origin = ?
+                WHERE mailbox = ? AND uidvalidity = ? AND uid = ?
+                  AND import_origin = 'unknown' AND notification_imported_at IS NULL""",
+                         (import_origin, mailbox, uidvalidity, uid))
+    if commit:
+        conn.commit()
 
 
 def is_processed(
@@ -363,12 +539,14 @@ def mark_imported(
     gmail_message_id,
     original_message_id=None,
     delete_delay_days=7,
+    *, commit=True,
 ):
     ensure_message(
         conn,
         mailbox,
         uidvalidity,
         uid,
+        commit=False,
     )
 
     now = utc_now()
@@ -410,7 +588,8 @@ def mark_imported(
         ),
     )
 
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def mark_drive_uploading(
@@ -510,6 +689,7 @@ def mark_gmail_imported_pending(
     uid,
     gmail_message_id,
     original_message_id=None,
+    *, sender=None, subject=None, imported_at=None,
 ):
     """
     通常メールのGmail import自体は成功したが、
@@ -527,12 +707,15 @@ def mark_gmail_imported_pending(
         uid,
     )
 
-    now = utc_now_iso()
+    now = imported_at or utc_now_iso()
 
     conn.execute(
         """
         UPDATE messages
         SET
+            notification_sender = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_sender END,
+            notification_subject = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_subject END,
+            notification_imported_at = COALESCE(notification_imported_at, ?),
             status = 'gmail_imported_pending',
             gmail_message_id = ?,
             original_message_id =
@@ -552,6 +735,9 @@ def mark_gmail_imported_pending(
           AND uid = ?
         """,
         (
+            sender,
+            subject,
+            now,
             gmail_message_id,
             original_message_id,
             now,
@@ -570,6 +756,7 @@ def mark_fallback_gmail_imported_pending(
     uidvalidity,
     uid,
     gmail_message_id,
+    *, sender=None, subject=None, imported_at=None,
 ):
     """
     Drive fallback版メールのGmail importは
@@ -583,12 +770,15 @@ def mark_fallback_gmail_imported_pending(
         uid,
     )
 
-    now = utc_now_iso()
+    now = imported_at or utc_now_iso()
 
     conn.execute(
         """
         UPDATE messages
         SET
+            notification_sender = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_sender END,
+            notification_subject = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_subject END,
+            notification_imported_at = COALESCE(notification_imported_at, ?),
             status = 'fallback_gmail_imported_pending',
             gmail_message_id = ?,
             imported_at =
@@ -603,6 +793,9 @@ def mark_fallback_gmail_imported_pending(
           AND uid = ?
         """,
         (
+            sender,
+            subject,
+            now,
             gmail_message_id,
             now,
             now,
@@ -621,6 +814,7 @@ def mark_drive_fallback(
     uid,
     gmail_message_id,
     delete_delay_days=7,
+    *, commit=True,
 ):
     """
     Driveへの添付保存と、
@@ -699,7 +893,8 @@ def mark_drive_fallback(
         ),
     )
 
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def mark_retry(
@@ -1007,6 +1202,7 @@ def ensure_notification(
     uidvalidity,
     uid,
     provider,
+    *, commit=True,
 ):
     """
     通知待ちを登録する。
@@ -1015,6 +1211,10 @@ def ensure_notification(
     何も変更しない。
     """
 
+    message = get_message(conn, mailbox, uidvalidity, uid)
+    if message is not None and message['import_origin'] == 'init':
+        return
+    imported_at = message['notification_imported_at'] if message is not None else None
     now = utc_now_iso()
 
     conn.execute(
@@ -1027,9 +1227,10 @@ def ensure_notification(
             status,
             attempts,
             created_at,
-            updated_at
+            updated_at,
+            notification_imported_at
         )
-        VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)
+        VALUES (?, ?, ?, ?, 'pending', 0, ?, ?, ?)
         """,
         (
             mailbox,
@@ -1038,10 +1239,12 @@ def ensure_notification(
             provider,
             now,
             now,
+            imported_at,
         ),
     )
 
-    conn.commit()
+    if commit:
+        conn.commit()
 def mark_notification_sent(
     conn,
     mailbox,
@@ -1068,6 +1271,7 @@ def mark_notification_sent(
           AND uidvalidity = ?
           AND uid = ?
           AND provider = ?
+          AND status = 'pending'
         """,
         (
             now,
@@ -1109,6 +1313,7 @@ def mark_notification_failed(
           AND uidvalidity = ?
           AND uid = ?
           AND provider = ?
+          AND status = 'pending'
         """,
         (
             str(error),
@@ -1122,37 +1327,26 @@ def mark_notification_failed(
 
     conn.commit()
 
-def get_pending_notifications(
-    conn,
-    provider=None,
-):
-    """
-    未送信の通知を返す。
+def mark_notification_terminal(conn, mailbox, uidvalidity, uid, provider, status, reason):
+    if status not in ('suppressed', 'expired'):
+        raise ValueError('Invalid notification terminal state.')
+    conn.execute("""UPDATE notifications SET status = ?, last_error = ?, updated_at = ?
+        WHERE mailbox = ? AND uidvalidity = ? AND uid = ? AND provider = ? AND status = 'pending'""",
+                 (status, reason, utc_now_iso(), mailbox, uidvalidity, uid, provider))
+    conn.commit()
 
-    provider指定時は、そのproviderだけを返す。
-    古い通知から順に処理する。
-    """
 
-    if provider is None:
-        return conn.execute(
-            """
-            SELECT *
-            FROM notifications
-            WHERE status = 'pending'
-            ORDER BY created_at
-            """
-        ).fetchall()
-
-    return conn.execute(
-        """
-        SELECT *
-        FROM notifications
-        WHERE status = 'pending'
-          AND provider = ?
-        ORDER BY created_at
-        """,
-        (provider,),
-    ).fetchall()
+def get_pending_notifications(conn, provider=None):
+    return conn.execute("""
+        SELECT notifications.*, messages.notification_sender, messages.notification_subject
+        FROM notifications LEFT JOIN messages
+          ON messages.mailbox = notifications.mailbox
+         AND messages.uidvalidity = notifications.uidvalidity
+         AND messages.uid = notifications.uid
+        WHERE notifications.status = 'pending'
+          AND (? IS NULL OR notifications.provider = ?)
+        ORDER BY notifications.created_at
+    """, (provider, provider)).fetchall()
 
 # =====================================================
 # IMAP deletion
@@ -1354,7 +1548,7 @@ def backup_database(
     最新keep_days個の日次バックアップを保持する（未稼働日もあるため暦日数とは異なる）。
     """
 
-    backup_dir = Path(backup_dir)
+    backup_dir = runtime_path(backup_dir)
 
     backup_dir.mkdir(
         parents=True,
