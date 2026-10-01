@@ -59,6 +59,7 @@ def load_config():
         ("imap", "delete_after_import"), ("gmail", "force_not_spam"),
         ("notification", "enabled"),
         ("notification", "include_sender"), ("notification", "include_subject"),
+        ("notification", "include_preview"),
     ):
         try:
             config.getboolean(section, option, fallback=False)
@@ -76,6 +77,7 @@ class NotificationSettings:
     include_subject: bool
     sender_filter_mode: str
     ttl_minutes: int
+    include_preview: bool = False
     allow_addresses: frozenset = frozenset()
     allow_domains: frozenset = frozenset()
     block_addresses: frozenset = frozenset()
@@ -177,6 +179,7 @@ def validate_notifications(config):
         enabled=enabled,
         include_sender=config.getboolean('notification', 'include_sender', fallback=False),
         include_subject=config.getboolean('notification', 'include_subject', fallback=False),
+        include_preview=config.getboolean('notification', 'include_preview', fallback=False),
         sender_filter_mode=mode, ttl_minutes=ttl, **values,
     )
 

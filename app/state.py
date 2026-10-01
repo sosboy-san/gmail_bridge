@@ -17,7 +17,7 @@ def utc_now_iso():
     return utc_now().isoformat()
 
 
-SCHEMA_VERSION = 1  # Independent of the application release version.
+SCHEMA_VERSION = 2  # Independent of the application release version.
 
 
 class DatabaseError(RuntimeError):
@@ -169,8 +169,10 @@ def _expected_schema(version):
     reference = sqlite3.connect(':memory:')
     try:
         _create_legacy_schema(reference)
-        if version == SCHEMA_VERSION:
+        if version >= 1:
             _add_notification_columns(reference)
+        if version >= 2:
+            _add_notification_detail_columns(reference)
         return {table: _schema_signature(reference, table) for table in
                 ('messages', 'drive_files', 'mailbox_state', 'notifications', 'system_state')}
     finally:
@@ -216,6 +218,11 @@ def _add_notification_columns(conn):
         """)
     finally:
         conn.create_function('_historical_timestamp', 1, None)
+
+
+def _add_notification_detail_columns(conn):
+    conn.execute('ALTER TABLE messages ADD COLUMN notification_sender_name TEXT')
+    conn.execute('ALTER TABLE messages ADD COLUMN notification_preview TEXT')
 
 
 def _historical_timestamp(value):
@@ -272,22 +279,25 @@ def connect(*, create=False):
         if conn.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
             raise DatabaseError('[DB_ERROR] Database integrity check failed.')
         version = conn.execute('PRAGMA user_version').fetchone()[0]
-        if version not in (0, SCHEMA_VERSION):
+        if version not in (0, 1, SCHEMA_VERSION):
             raise DatabaseError('[DB_ERROR] Unsupported database schema version.')
         if not exists:
             conn.execute('BEGIN IMMEDIATE')
             _create_legacy_schema(conn)
             _add_notification_columns(conn)
+            _add_notification_detail_columns(conn)
             conn.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
             conn.commit()
-        elif version == 0:
-            _validate_schema(conn, 0)
+        elif version < SCHEMA_VERSION:
+            _validate_schema(conn, version)
             try:
                 _migration_backup(conn)
                 conn.execute('BEGIN IMMEDIATE')
-                _create_legacy_schema(conn)
-                migrate_v01(conn, commit=False)
-                _add_notification_columns(conn)
+                if version == 0:
+                    _create_legacy_schema(conn)
+                    migrate_v01(conn, commit=False)
+                    _add_notification_columns(conn)
+                _add_notification_detail_columns(conn)
                 _validate_schema(conn, SCHEMA_VERSION)
                 conn.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
                 conn.commit()
@@ -689,7 +699,7 @@ def mark_gmail_imported_pending(
     uid,
     gmail_message_id,
     original_message_id=None,
-    *, sender=None, subject=None, imported_at=None,
+    *, sender=None, subject=None, sender_name=None, preview=None, imported_at=None,
 ):
     """
     通常メールのGmail import自体は成功したが、
@@ -714,6 +724,8 @@ def mark_gmail_imported_pending(
         UPDATE messages
         SET
             notification_sender = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_sender END,
+            notification_sender_name = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_sender_name END,
+            notification_preview = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_preview END,
             notification_subject = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_subject END,
             notification_imported_at = COALESCE(notification_imported_at, ?),
             status = 'gmail_imported_pending',
@@ -736,6 +748,8 @@ def mark_gmail_imported_pending(
         """,
         (
             sender,
+            sender_name,
+            preview,
             subject,
             now,
             gmail_message_id,
@@ -756,7 +770,7 @@ def mark_fallback_gmail_imported_pending(
     uidvalidity,
     uid,
     gmail_message_id,
-    *, sender=None, subject=None, imported_at=None,
+    *, sender=None, subject=None, sender_name=None, preview=None, imported_at=None,
 ):
     """
     Drive fallback版メールのGmail importは
@@ -777,6 +791,8 @@ def mark_fallback_gmail_imported_pending(
         UPDATE messages
         SET
             notification_sender = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_sender END,
+            notification_sender_name = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_sender_name END,
+            notification_preview = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_preview END,
             notification_subject = CASE WHEN notification_imported_at IS NULL THEN ? ELSE notification_subject END,
             notification_imported_at = COALESCE(notification_imported_at, ?),
             status = 'fallback_gmail_imported_pending',
@@ -794,6 +810,8 @@ def mark_fallback_gmail_imported_pending(
         """,
         (
             sender,
+            sender_name,
+            preview,
             subject,
             now,
             gmail_message_id,
@@ -1338,7 +1356,8 @@ def mark_notification_terminal(conn, mailbox, uidvalidity, uid, provider, status
 
 def get_pending_notifications(conn, provider=None):
     return conn.execute("""
-        SELECT notifications.*, messages.notification_sender, messages.notification_subject
+        SELECT notifications.*, messages.notification_sender, messages.notification_subject,
+               messages.notification_sender_name, messages.notification_preview
         FROM notifications LEFT JOIN messages
           ON messages.mailbox = notifications.mailbox
          AND messages.uidvalidity = notifications.uidvalidity

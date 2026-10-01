@@ -68,6 +68,7 @@ class NotificationTest(IsolatedTest):
         message = state.get_message(self.db, 'INBOX', '123', 1)
         self.assertEqual(message['notification_sender'], 'sender@example.invalid')
         self.assertEqual(message['notification_subject'], 'Synthetic test')
+        self.assertEqual(message['notification_preview'], 'Synthetic body')
         self.assertEqual(message['notification_imported_at'], NOW.isoformat())
         self.assertEqual(len(state.get_pending_notifications(self.db)), 1)
         self.assertEqual(self.process(), 'skipped')
@@ -82,6 +83,7 @@ class NotificationTest(IsolatedTest):
         self.assertEqual(state.get_message(self.db, 'INBOX', '123', 2)['notification_sender'],
                          'sender@example.invalid')
         self.assertEqual(len(state.get_pending_notifications(self.db)), 2)
+        self.assertEqual(state.get_message(self.db, 'INBOX', '123', 2)['notification_preview'], 'Synthetic body')
 
     def test_api_time_and_metadata_are_immutable_through_finalization_retry(self):
         self.gmail.apply_source_label.side_effect = RuntimeError('synthetic label failure')
@@ -96,6 +98,7 @@ class NotificationTest(IsolatedTest):
         row = state.get_message(self.db, 'INBOX', '123', 1)
         self.assertEqual(row['notification_imported_at'], NOW.isoformat())
         self.assertEqual(row['notification_subject'], 'Synthetic test')
+        self.assertEqual(row['notification_preview'], 'Synthetic body')
         self.assertEqual(self.gmail.import_message.call_count, 1)
         self.assertEqual(self.send(NOW + timedelta(hours=1))[1], [])
         self.assertEqual(self.status(), 'expired')
@@ -201,21 +204,39 @@ class NotificationTest(IsolatedTest):
         self.assertEqual(self.status(1), 'sent')
         self.assertEqual(self.status(2), 'suppressed')
 
-    def test_flags_utf8_fixed_ascii_title_and_omission(self):
-        self.queue(subject='UTF-8 synthetic')
-        for sender, subject, expected in ((False, False, []), (True, False, ['From:']),
-                                          (False, True, ['Subject:']), (True, True, ['From:', 'Subject:'])):
-            self.config['notification']['include_sender'] = str(sender)
-            self.config['notification']['include_subject'] = str(subject)
-            row = state.get_pending_notifications(self.db)[0]
-            body = notifications._body(row, configuration.validate_notifications(self.config))
-            self.assertEqual('From:' in body, 'From:' in expected)
-            self.assertEqual('Subject:' in body, 'Subject:' in expected)
+    def test_flags_fixed_positions_and_missing_values(self):
+        self.queue(subject='日本語')
+        for sender in (False, True):
+            for subject in (False, True):
+                for preview in (False, True):
+                    self.config['notification'].update(include_sender=str(sender), include_subject=str(subject), include_preview=str(preview))
+                    row = state.get_pending_notifications(self.db)[0]
+                    options = configuration.validate_notifications(self.config)
+                    self.assertEqual(notifications._title(row, options), 'sender@example.com' if sender else 'Gmail Bridge')
+                    self.assertEqual(notifications._body(row, options), '日本語' if subject else 'You have one new email')
         self.queue(2, sender=None, subject=None)
-        _, calls = self.send()
-        self.assertEqual(calls[0].kwargs['title'], 'Gmail Bridge')
-        self.assertNotIn('From:', calls[1].kwargs['message'])
-        self.assertNotIn('Subject:', calls[1].kwargs['message'])
+        row = state.get_pending_notifications(self.db)[1]
+        options = configuration.validate_notifications(self.config)
+        self.assertEqual(notifications._title(row, options), 'Unknown sender')
+        self.assertEqual(notifications._body(row, options), 'No subject')
+
+    def test_details_retry_uses_saved_metadata_without_imap(self):
+        self.imap.fetch_raw.return_value = sample_mail().replace(b'sender@example.invalid', b'Display Name <sender@example.invalid>')
+        with patch.object(main, 'utc_now_iso', return_value=NOW.isoformat()):
+            self.assertEqual(self.process(), 'imported')
+        self.config['notification'].update(include_sender='true', include_subject='true', include_preview='true')
+        self.imap.reset_mock()
+        self.assertEqual(self.send(error=RuntimeError('synthetic'))[0]['failed'], 1)
+        result, calls = self.send()
+        self.assertEqual(result['sent'], 1)
+        self.assertEqual(calls[0].kwargs, {'title': 'Display Name <sender@example.invalid>', 'message': 'Synthetic test\nSynthetic body'})
+        self.imap.fetch_raw.assert_not_called()
+        self.config['notification'].update(include_sender='false', include_subject='false')
+        row = state.get_pending_notifications(self.db)
+        self.assertEqual(row, [])
+        saved = state.get_message(self.db, 'INBOX', '123', 1)
+        options = configuration.validate_notifications(self.config)
+        self.assertEqual(notifications._body(saved, options), 'You have one new email\nSynthetic body')
 
     def test_invalid_and_missing_sender_suppresses_in_any_active_mode(self):
         path = self.directory / 'notification_senders.ini'
@@ -285,8 +306,8 @@ class NotificationTest(IsolatedTest):
         (self.directory / 'notification_senders.ini').write_text('[allowlist]\naddresses=' + sender + '\n', encoding='utf-8')
         result, calls = self.send()
         self.assertEqual(result['sent'], 1)
-        line = calls[0].kwargs['message'].splitlines()[1]
-        self.assertEqual(len(line.removeprefix('From: ')), 200)
+        line = calls[0].kwargs['title']
+        self.assertEqual(len(line), 200)
         self.assertTrue(line.endswith('…'))
 
     def test_network_budget_and_failure_stop_while_classification_continues(self):
@@ -369,7 +390,7 @@ class MetadataAndRuleTests(IsolatedTest):
         self.assertEqual(sender, 'sender@example.com')
         self.assertEqual(subject, '日本語の件名')
         value = display_text('a\r\nb\x00c\x7f\u202e' + 'x' * 300)
-        self.assertTrue(value.startswith('abc'))
+        self.assertTrue(value.startswith('a bc'))
         self.assertEqual(len(value), 200)
         self.assertTrue(value.endswith('…'))
 

@@ -27,7 +27,7 @@ from app.mime_fallback import (
     save_attachment_temp,
     validate_fallback_message,
 )
-from app.notification_metadata import notification_metadata
+from app.notification_metadata import notification_details
 from app.notification_service import (
     send_pending_notifications,
 )
@@ -902,7 +902,7 @@ def process_uid(
             import_origin=import_origin,
         )
 
-        sender, subject = notification_metadata(raw)
+        sender, subject, sender_name, preview = notification_details(raw)
 
         original_message_id = (
             get_original_message_id(raw)
@@ -1051,7 +1051,7 @@ def process_uid(
                 uidvalidity,
                 uid,
                 gmail_id,
-                sender=sender, subject=subject, imported_at=utc_now_iso(),
+                sender=sender, subject=subject, sender_name=sender_name, preview=preview, imported_at=utc_now_iso(),
             )
 
             finalize_fallback(
@@ -1133,7 +1133,7 @@ def process_uid(
                 uidvalidity,
                 uid,
                 gmail_id,
-                sender=sender, subject=subject, imported_at=utc_now_iso(),
+                sender=sender, subject=subject, sender_name=sender_name, preview=preview, imported_at=utc_now_iso(),
             )
 
             finalize_fallback(
@@ -1164,7 +1164,7 @@ def process_uid(
             uid,
             gmail_id,
             original_message_id,
-            sender=sender, subject=subject, imported_at=utc_now_iso(),
+            sender=sender, subject=subject, sender_name=sender_name, preview=preview, imported_at=utc_now_iso(),
         )
 
         finalize_normal(

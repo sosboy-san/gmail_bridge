@@ -189,6 +189,8 @@
   "service.retry_error": "Local service operation failed. Check files and permissions; retrying next cycle.",
   "notification.expired": "[NOTIFICATION_EXPIRED] Notification expired: {reason}",
   "notification.skipped": "[NOTIFICATION_SKIPPED] Notification suppressed: {reason}",
+  "notification.sender_unknown": "Unknown sender",
+  "notification.subject_missing": "No subject",
   "notification.sender": "From: {value}",
   "notification.subject": "Subject: {value}",
   "notification.legacy_ttl": "[NOTIFICATION_CONFIG] ttl_minutes is not configured; legacy unlimited retry behavior is active.",
