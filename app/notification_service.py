@@ -87,12 +87,21 @@ def _finish(db, row, status, reason):
     print(t(key, reason=reason))
 
 
+def _title(row, settings):
+    if not settings.include_sender:
+        return 'Gmail Bridge'
+    sender = row['notification_sender']
+    if not sender:
+        return t('notification.sender_unknown')
+    name = row['notification_sender_name']
+    return display_text(f'{name} <{sender}>' if name else sender)
+
+
 def _body(row, settings):
-    lines = [t('notification_service.send_pending_notifications.4')]
-    if settings.include_sender and row['notification_sender']:
-        lines.append(t('notification.sender', value=display_text(row['notification_sender'])))
-    if settings.include_subject and row['notification_subject']:
-        lines.append(t('notification.subject', value=display_text(row['notification_subject'])))
+    subject = (display_text(row['notification_subject'] or '') or t('notification.subject_missing')) if settings.include_subject else t('notification_service.send_pending_notifications.4')
+    lines = [subject]
+    if settings.include_preview and row['notification_preview']:
+        lines.append(display_text(row['notification_preview']))
     return '\n'.join(lines)
 
 
@@ -133,7 +142,7 @@ def send_pending_notifications(db, config=None, *, config_loader=load_config):
         try:
             requests += 1
             client = make_ntfy_client(config)
-            client.send(title='Gmail Bridge', message=_body(row, settings))
+            client.send(title=_title(row, settings), message=_body(row, settings))
         except Exception:
             mark_notification_failed(db, row['mailbox'], row['uidvalidity'], row['uid'],
                                      'ntfy', 'ntfy_send_failed')

@@ -2,6 +2,8 @@
 
 通常メールntfy通知の対象・表示・鮮度と、initの通知抑止を実装しました。Release/tag/Docker Hub公開は未実施です。
 
+> RC1時点の記録です。詳細通知の次候補の仕様は `NTFY_DETAILS_RC2.md` を参照してください。
+
 ## 設定と判定
 
 `include_sender=false / include_subject=false / sender_filter_mode=off` を既定とします。送信元はFromから一意に正常解析できたアドレスだけを使い、表示名は含めません。件名はUTF-8ヘッダを復号します。表示値は改行・制御文字等を除去し、各200文字を上限に省略します。FromとSubjectは独立して扱い、不足した項目だけを省略します。フィルタ用のアドレスは表示時の省略前の値です。

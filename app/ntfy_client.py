@@ -1,3 +1,4 @@
+import json
 import urllib.request
 
 from app.i18n import t
@@ -32,28 +33,17 @@ class NtfyClient:
         title=None,
         click_url=None,
     ):
-        url = (
-            f"{self.server_url}/"
-            f"{self.topic}"
-        )
-
-        request = urllib.request.Request(
-            url,
-            data=message.encode("utf-8"),
-            method="POST",
-        )
-
+        payload = {'topic': self.topic, 'message': message}
         if title:
-            request.add_header(
-                "Title",
-                title,
-            )
-
+            payload['title'] = title
         if click_url:
-            request.add_header(
-                "Click",
-                click_url,
-            )
+            payload['click'] = click_url
+        request = urllib.request.Request(
+            self.server_url + '/',
+            data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+            headers={'Content-Type': 'application/json; charset=utf-8'},
+            method='POST',
+        )
 
         if self.token:
             request.add_header(

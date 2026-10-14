@@ -1,23 +1,33 @@
-# リリースノート / Release notes
+# リリースノート
 
-## v1.1.0（開発中・未公開 / Unreleased）
+[English](RELEASE_NOTES.en.md) · 日本語
 
-- **initの通常メール通知を停止**: `--all / --latest / --since / --uid` による取り込みは通常ntfy通知を生成しません。選択UIDのinit由来を保存し、中断後にrunで再開しても抑止します。v1.0.0からの意図的な動作変更です。既存DBの移行でinitを実行することはありません。
-- **通知内容と対象を選択**: 送信元アドレス・件名は個別に表示可能（既定false）。off / allowlist / blocklist / combinedのモードで、アドレス・ドメインの完全一致を使用します。combinedでは除外優先。正規表現やサブドメインの自動一致はありません。
-- **通知の鮮度**: `ttl_minutes` 未指定／0は従来互換の無期限再試行。新しい設定例では15分を推奨値として明示します。TTLはGmail API成功時に保存する専用UTC時刻から計算し、通知はsent / suppressed / expiredから復活しません。
-- **DBと常駐運用**: 専用バックアップ付きのトランザクション移行、共通ロック、明示的なinitのみのDB作成、安全待機・設定修正後の復帰を追加。空・破損・未知のDBは異常として停止します。
-- **設定エラー**: 通知が有効な場合の無効なprovider / topic / URLや、有効な送信元フィルタのファイル不正もサービスの待機／停止対象です。通知だけに異常を閉じ込めて取り込みを継続する旧挙動からの変更です。無効な通知／offのフィルタではリストファイルを読みません。
-- **保存先**: `BRIDGE_CONFIG_DIR` 指定時はその配下だけを使用し、旧パスへfallbackしません。未指定時は従来方式です。
+## v1.1.0 — 2026-10-14
 
-- **配布・運用資料**: 旧個別マウントを維持し、v1.1向け単一/configのbuild/pull用Composeを追加。新方式はバージョン明示必須。定常運用で不要なcredentialsマウントを削除。初回安全待機→Console init→自動復帰、更新前一式backup、migration、rollback、通知・障害対応を日本語資料へ反映しました。
-- **RC配布準備**: vMAJOR.MINOR.PATCH-rc.Nを公開ワークフローで受け付け、RCは完全タグのみ、正式版のlatest/major/minorは更新しません。v1.1.0-rc.1は未作成・未公開です。
-- **Phase 5検証**: 全94件のオフラインテスト、lint、公開前チェック、4種類のCompose構造の静的確認を実施。DockerなしのためDocker compose config・build・実動作は未検証。環境へのDocker導入は行っていません。英語資料の全面整備は仕様確定後に実施します。
+rc.2を所有者のQNAP Container Stationで2026-10-01から継続運用し、2026-10-14に問題なしと報告され、正式版へ移行しました。全環境・全機能の網羅的受入試験を意味するものではありません。
 
-**Validation status:** Phase 5 Compose and Japanese installation/upgrade/maintenance documentation are complete. Static/offline validation only; Docker/QNAP acceptance tests and the complete English documentation revision remain pending. No v1.1.0 tag, GitHub Release or Docker Hub image has been published.
+- rc.2の動作コード・依存関係・DB schema 2を維持します。
+- 送信者の表示名とアドレスをTitleへ、件名と任意の本文プレビューをBodyへ表示。全表示OFFの従来表示を維持し、UTF-8 JSONで日本語Titleを送ります。
+- 表示名とプレビューを取り込み時に保存。再送で元メールを再取得せず、フィルタはアドレスだけで判定します。
+- init通知抑止、完全一致送信元フィルタ、TTL、共通ロック、安全待機、単一/config方式を含みます。
+- schema 0/1からbackup付きで移行し、既存通知状態・TTL起点を保持。更新時にinitは不要です。
+- 日本語・英語の導入、保守、通知、Docker、支援資料と紹介・プライバシー・利用条件ページを整備し、相互切り替えを追加しました。
 
-**Behavior changes for existing users:** init imports no longer create ordinary ntfy notifications, including messages later resumed by run. Notification-specific configuration errors now stop/defer service operations when that feature is enabled. Database creation is reserved for explicit init. These changes are intentional; schema migration never performs init.
+**v1.0からの動作変更:** init由来の通常通知は中断再開後も抑止します。通知有効時の設定不正は処理を停止・待機させます。DB作成は明示initのみです。TTL未指定/0は無期限の従来互換、設定例は15分です。
 
-**Notification compatibility:** sender/subject display defaults to false and filtering defaults to off. An omitted `ttl_minutes` or explicit zero preserves unlimited retries; the new example recommends 15 minutes. Exact address/domain rules are case insensitive, combined mode gives block rules priority, and subdomains must be listed explicitly. Operational outage/recovery alerts remain separate from ordinary sender filters and TTL; invalid current configuration blocks sending either kind of alert.
+**更新:** 停止 → 設定/token/data等の一式backup → 完全タグ1.1.0のpull → 停止中status → up。rc.2と正式版は同じschemaです。[MAINTENANCE.md](MAINTENANCE.md)を参照してください。
+
+**検証:** rc.2で100件のオフライン回帰テストとamd64/arm64 Docker公開CIが成功。正式版の文書変更後もオフラインテスト・lint・公開対象検査を実行します。公開工程の実結果はGitHub Actionsを参照してください。
+
+**既知の制限:** API成功からDB確定までの重複可能性、UIDPLUSなしでの削除競合、復旧通知の独立再送なし、run終了0が全件成功を保証しない点は維持します。本文プレビュー等を含むDB・backupは非公開にします。
+
+## v1.1.0-rc.2 — 2026-10-01
+
+詳細通知とschema 2を追加。所有者の実機で件名欠落時の代替表示、本文先頭の空白整理が確認され、その後の継続運用で問題なしと報告されています。
+
+## v1.1.0-rc.1 — 2026-10-01
+
+通知フィルタ・TTL、init抑止、DB移行、共通ロック、起動待機、単一/config方式を追加。送信元フィルタは所有者の実機確認済みです。
 
 ## v1.0.0 - 2026-09-30
 

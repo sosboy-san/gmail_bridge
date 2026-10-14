@@ -1,5 +1,7 @@
 # アンインストール / Uninstall
 
+[English](UNINSTALL.en.md) · 日本語
+
 ## まず停止する
 
 ```bash

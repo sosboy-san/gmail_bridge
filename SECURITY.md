@@ -1,5 +1,7 @@
 # 公開前の確認 / Security and publication
 
+[English](SECURITY.en.md) · 日本語
+
 ## 公開対象と秘密情報
 
 公開対象はソース、翻訳、設定例、Docker定義、テスト、ドキュメントです。`tools/check_release.py --archive` は明示した公開ファイルだけをZIPへ入れます。作業用の仮想環境や検査用退避ファイルは入りません。ZIPを別の空フォルダに展開してGitの初回コミットを作ると、実運用データとの混入を避けられます。
@@ -65,4 +67,4 @@ If a secret leaks, revoke/rotate it and then address history and artifacts. Neve
 
 ## v1.1の保存・通知
 
-単一/configには秘密設定、更新可能なtoken、DB（送信元・件名を含む）、backup、logsをまとめて保存します。フォルダ全体を非公開にし、GitHubや公開添付へ置かないでください。sender/subject表示は既定falseです。送信元フィルタはFrom文字列の選別であり、送信者認証ではありません。ntfyの認証・ACLは利用者が管理します。RCは完全タグのみを公開しlatestを更新しません。設定・認証ファイルはイメージへCOPYしません。
+単一/configには秘密設定、更新可能なtoken、DB（送信元・表示名・件名・本文プレビューを含む）、backup、logsをまとめて保存します。フォルダ全体を非公開にし、GitHubや公開添付へ置かないでください。sender/subject/preview表示は既定false。表示OFFでも取り込み時のメタデータはDBへ保存しますです。送信元フィルタはFrom文字列の選別であり、送信者認証ではありません。ntfyの認証・ACLは利用者が管理します。RCは完全タグのみを公開しlatestを更新しません。設定・認証ファイルはイメージへCOPYしません。

@@ -1,5 +1,7 @@
 # 導入 / Installation
 
+[English](INSTALL.en.md) · 日本語
+
 検証環境と本番環境で `data/` を共有しないでください。検証には専用メールボックスと専用Googleアカウントを推奨します。
 
 ## 1. 前提
@@ -34,7 +36,7 @@ Desktop appのループバック方式については [Google公式手順](https
 
 ## 3. v1.1の新規導入（Docker Hub / QNAP）
 
-この節はv1.1向けです。**v1.1.0 / v1.1.0-rc.1はまだ未公開**です。以下のpull手順は対象タグの公開後に使用します。現在の正式版v1.0.0は旧方式Composeを使い、常駐開始前に単発initを完了してください。v1.0.0は `/config` 方式に対応していません。
+新規導入は正式版v1.1.0と単一 `/config` 方式を使用します。旧v1.0.0はこの方式に対応していません。既存環境の更新は [MAINTENANCE.md](MAINTENANCE.md) を参照し、initは実行しないでください。
 
 GitHub `sosboy-san/gmail_bridge` を正本とし、対象タグに含まれる設定例・Compose・導入資料を取得します。作業フォルダの古いコピーを更新元にしないでください。
 
@@ -61,10 +63,10 @@ cp notification_senders.example.ini config/notification_senders.ini
 | drive.folder | Gmail-IMAP-Bridge。フォルダ名でありIDではない |
 | notification.enabled | false。詳細は [NOTIFICATIONS.md](NOTIFICATIONS.md) |
 
-Composeに対応するローカル `.env` で、**公開済みの完全バージョン**を指定します。Dockerタグには先頭の `v` を付けません。以下はRC公開後の例であり、公開済みであることを意味しません。
+Composeに対応するローカル `.env` で、**公開済みの完全バージョン**を指定します。Dockerタグには先頭の `v` を付けません。正式版の例です。
 
 ```dotenv
-BRIDGE_VERSION=1.1.0-rc.1
+BRIDGE_VERSION=1.1.0
 BRIDGE_UID=1000
 BRIDGE_GID=1000
 TZ=Asia/Tokyo
@@ -139,11 +141,3 @@ ComposeのTZはAsia/Tokyo、イメージ単体はEtc/UTCです。cleanup完了�
 - [MAINTENANCE.md](MAINTENANCE.md): v1.0→v1.1、保存方式移行、backup、migration、rollback、障害復旧。
 - [NOTIFICATIONS.md](NOTIFICATIONS.md): 通知内容、送信元フィルタ、TTL、状態とinit抑止。
 - [DOCKER_RELEASE.md](DOCKER_RELEASE.md): RCと正式版の配布タグ、公開管理。
-
-## English
-
-The Japanese v1.1 instructions above are the current maintenance guide; a complete English revision is deferred until the v1.1 specification is finalized. v1.1 and its RC are not published yet.
-
-Use desktop OAuth to create token.json; credentials.json is not needed at runtime. The new image Compose requires a published exact BRIDGE_VERSION without a leading v and mounts one writable host folder at /config with BRIDGE_CONFIG_DIR=/config. v1.0 does not support this layout; retain the legacy image Compose for v1.0.
-
-For v1.1, start the container, confirm WAITING_FOR_INIT, then explicitly execute init through its console or docker compose exec. There is no automatic init. init imports do not queue ordinary notifications, including selected messages resumed by run. Partial init does not ignore unselected old mail. Never init during upgrades. See MAINTENANCE.md for stopped backups, schema migration and rollback; see NOTIFICATIONS.md for exact settings and TTL behavior.

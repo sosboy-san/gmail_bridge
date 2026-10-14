@@ -4,7 +4,7 @@
 
 ## 公開前の確認
 
-1. `index.html`、`privacy.html`、`terms.html` の記載を確認します。特に個人用OAuthの運用者がデータの取り扱いに同意できる内容か確認してください。
+1. `index.html`、`privacy.html`、`terms.html` と対応する `.en.html` の記載を確認します。特に個人用OAuthの運用者がデータの取り扱いに同意できる内容か確認してください。
 2. 公開対象検査を実行し、秘密情報や実機用ファイルが含まれていないことを確認します。
 3. 所有者がPublic化を承認した後、公開対象だけをGitHubへ反映します。実機用 `test/` や `.release-work/` は反映しません。
 4. GitHubのSettings → Pagesで、公開元を対象ブランチの `/docs` に設定します。利用可能な設定はリポジトリのプラン・権限に従います。
@@ -12,6 +12,7 @@
 
 公開URL:
 
+- English: https://sosboy-san.github.io/gmail_bridge/index.en.html
 - 紹介: https://sosboy-san.github.io/gmail_bridge/
 - プライバシー: https://sosboy-san.github.io/gmail_bridge/privacy.html
 - 利用条件: https://sosboy-san.github.io/gmail_bridge/terms.html

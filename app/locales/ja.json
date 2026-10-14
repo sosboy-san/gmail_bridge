@@ -189,6 +189,8 @@
   "service.retry_error": "サービスのローカル処理に失敗しました。ファイルと権限を確認してください。次の周期で再試行します。",
   "notification.expired": "[NOTIFICATION_EXPIRED] 通知の有効期限が切れました: {reason}",
   "notification.skipped": "[NOTIFICATION_SKIPPED] 通知を抑止しました: {reason}",
+  "notification.sender_unknown": "送信者不明",
+  "notification.subject_missing": "件名なし",
   "notification.sender": "送信元: {value}",
   "notification.subject": "件名: {value}",
   "notification.legacy_ttl": "[NOTIFICATION_CONFIG] ttl_minutes未指定のため、従来互換の無期限再試行が有効です。",
