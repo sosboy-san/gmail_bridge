@@ -1,5 +1,7 @@
 # トラブルシューティング / Troubleshooting
 
+[English](TROUBLESHOOTING.en.md) · 日本語
+
 ## 設定・起動
 
 - `config.ini が見つかりません`: `/app/config.ini` のファイルマウントと作業ディレクトリを確認します。例をコピーして実値を入力してください。

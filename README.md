@@ -1,14 +1,16 @@
 # Gmail Bridge
 
-開発版v1.1は未公開です。導入・更新資料: [INSTALL.md](INSTALL.md)、[MAINTENANCE.md](MAINTENANCE.md)、[NOTIFICATIONS.md](NOTIFICATIONS.md)。次の実機確認版はv1.1.0-rc.1を予定しています。
+[English](README.en.md) · 日本語
 
-正式版: **[v1.0.0](https://github.com/sosboy-san/gmail_bridge/releases/tag/v1.0.0)**（2026-09-30）
+v1.1.0はrc.2のQNAP実機運用確認を経た正式版です。導入・更新資料: [INSTALL.md](INSTALL.md)、[MAINTENANCE.md](MAINTENANCE.md)、[NOTIFICATIONS.md](NOTIFICATIONS.md)。
+
+正式版: **[v1.1.0](https://github.com/sosboy-san/gmail_bridge/releases/tag/v1.1.0)**（2026-10-14）
 
 外部メールサーバーのIMAPメールを、Gmail APIでGmailへ取り込むPythonアプリです。Gmailの外部POP取得を利用できない環境で、会社メールなどをGmailから確認する用途を想定しています。
 
 元の実装はQNAP NAS / Container Stationで運用確認済みです。公開版には、表示の多言語化・導入手順・秘密情報の除外・オフラインテストを追加しています。**公開版の実サービス接続とDockerビルドの確認状況は [RELEASE_NOTES.md](RELEASE_NOTES.md) を参照してください。**
 
-[English](#english) · [導入 / Installation](INSTALL.md) · [削除 / Uninstall](UNINSTALL.md) · [トラブル対応](TROUBLESHOOTING.md) · [公開前確認](SECURITY.md)
+[English](README.en.md) · [導入 / Installation](INSTALL.md) · [削除 / Uninstall](UNINSTALL.md) · [トラブル対応](TROUBLESHOOTING.md) · [公開前確認](SECURITY.md)
 
 ## バージョン方針
 
@@ -22,7 +24,7 @@ Semantic Versioning（MAJOR.MINOR.PATCH）を採用します。互換性の対�
 | `v1.1.0` | 後方互換を保つ機能追加 |
 | `v2.0.0` | 設定形式・DB・CLIなどの互換性を壊す変更 |
 
-v1.1は既存設定・保存方式を維持しますが、init通知抑止、設定不正時の停止、明示initのみのDB作成は意図的な運用変更です。単純に全挙動互換とは扱わず、更新前に未公開欄を確認してください。RCは実機検証用Pre-releaseで、正式版やlatestとは分離します。
+v1.1は既存設定・保存方式を維持しますが、init通知抑止、設定不正時の停止、明示initのみのDB作成は意図的な運用変更です。単純に全挙動互換とは扱わず、更新前にv1.1.0のリリースノートを確認してください。RCは実機検証用Pre-releaseで、正式版やlatestとは分離します。
 
 正式版でも既知の制限はあります。[リリースノート](RELEASE_NOTES.md)で検証範囲と導入時の注意を確認してください。
 
@@ -103,7 +105,7 @@ tools/check_release.py    公開対象検査・配布ZIP作成
 - 1つの設定・DBは1つのIMAPアカウントとGmailアカウント専用です。アカウントを変更して同じDBを使わないでください。
 - Gmail側の成功とSQLiteへのID保存の間には小さなクラッシュ窓があり、厳密なexactly-once保証ではありません。Driveアップロード直後も同様です。
 - UIDPLUS非対応サーバーではEXPUNGE直前に他の `\Deleted` がないことを確認しますが、他クライアントとの競合を完全には排除できません。
-- v1.1は共通ロックを使います。未初期化待機中はConsoleからinitできます。初期化済み環境の手動init・cleanupは常駐停止を推奨し、複数サービスで同じDBを共有しないでください。Docker/QNAPのv1.1実動作は未検証です。
+- v1.1は共通ロックを使います。未初期化待機中はConsoleからinitできます。初期化済み環境の手動init・cleanupは常駐停止を推奨し、複数サービスで同じDBを共有しないでください。所有者のQNAPでrc.2を継続運用し、問題なしと報告されています。
 
 ## English
 
@@ -139,6 +141,4 @@ Development, documentation, and release preparation were supported with assistan
 
 ## Docker Hubイメージの利用
 
-旧方式の取得用 `docker-compose.image.example.yml` と、v1.1用の単一/config方式 `docker-compose.config.image.example.yml` を用意しています。公開先は `sosboy/gmail-bridge`、既定の固定バージョンは `1.0.0` です。**[Docker Hubで公開済み](https://hub.docker.com/r/sosboy/gmail-bridge)です（linux/amd64・linux/arm64）。** 導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。
-
-English v1.1 note: shared locking, explicit init after safe startup waiting, optional sender/subject filtering and TTL are new. Init no longer queues ordinary notifications. Full English documentation revision is deferred; the Japanese v1.1 guides are current.
+旧方式の取得用 `docker-compose.image.example.yml` と、v1.1用の単一/config方式 `docker-compose.config.image.example.yml` を用意しています。公開先は `sosboy/gmail-bridge`、旧方式Composeの既定は `1.0.0` です。v1.1.0では `.env` に `BRIDGE_VERSION=1.1.0` を明示してください。**[Docker Hubで公開済み](https://hub.docker.com/r/sosboy/gmail-bridge)です（linux/amd64・linux/arm64）。** 導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。

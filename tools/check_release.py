@@ -23,6 +23,8 @@ ROOT_FILES = (
     'docker-compose.config.example.yml', 'docker-compose.config.image.example.yml',
     'MAINTENANCE.md', 'NOTIFICATIONS.md', 'DOCKER_RELEASE.md', 'config.example.ini', 'notification_senders.example.ini', 'requirements.txt',
     'requirements-dev.txt', 'pyproject.toml', 'make_token.py', 'LICENSE',
+    'DOCKER_HUB.md',
+    'README.en.md', 'INSTALL.en.md', 'MAINTENANCE.en.md', 'NOTIFICATIONS.en.md', 'DOCKER_RELEASE.en.md', 'UNINSTALL.en.md', 'TROUBLESHOOTING.en.md', 'SECURITY.en.md', 'CONTRIBUTING.en.md', 'RELEASE_NOTES.en.md',
     'README.md', 'INSTALL.md', 'UNINSTALL.md', 'TROUBLESHOOTING.md',
     'CONTRIBUTING.md', 'SECURITY.md', 'RELEASE_NOTES.md',
 )
@@ -32,6 +34,7 @@ def public_files():
     paths = [ROOT / name for name in ROOT_FILES]
     paths.extend(ROOT / 'docs' / name for name in (
         'index.html', 'privacy.html', 'terms.html', 'style.css',
+        'index.en.html', 'privacy.en.html', 'terms.en.html',
         '.nojekyll', 'PUBLISHING.md', 'V1_1_0_PHASE2.md', 'V1_1_0_PHASE3.md',
         'V1_1_0_PHASE4.md', 'V1_1_0_PHASE5.md', 'V1_1_0_RC.md',
     ))

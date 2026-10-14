@@ -1,5 +1,7 @@
 # ntfy通知設定（v1.1）
 
+[English](NOTIFICATIONS.en.md) · 日本語
+
 メール取り込みは確実性優先、通常通知は鮮度優先です。通知の失敗・抑止・期限切れでGmailの取り込み完了状態を取り消しません。この資料はapp/config.py、notification_metadata.py、notification_service.py、main.py、state.pyの実装に対応します。
 
 ## 設定例と既定値
@@ -13,6 +15,7 @@ topic =
 token =
 include_sender = false
 include_subject = false
+include_preview = false
 sender_filter_mode = off
 sender_filter_file = notification_senders.ini
 ttl_minutes = 15
@@ -26,16 +29,18 @@ topicは自分の保護されたtopicを設定します。tokenはサーバー�
 | provider | ntfy | ntfyのみ |
 | server_url | https://ntfy.sh | 利用するntfyサーバー |
 | topic / token | 空 | topicは有効化時必須、tokenは認証に応じて使用 |
-| include_sender / include_subject | false / false | 通常通知への送信元/件名表示 |
+| include_sender / include_subject / include_preview | false / false / false | 送信者Title・件名Body・本文プレビューの個別表示 |
 | sender_filter_mode | off | off / allowlist / blocklist / combined |
 | sender_filter_file | notification_senders.ini | 有効な送信元フィルタのINI。保存ルート内を指定 |
 | ttl_minutes | 0 | 0または未指定は無期限。新規設定例は15分。負数・非整数は設定エラー |
 
-通知本体は固定の新着文に、選択した項目だけを追加します。送信元はFromの**メールアドレスのみ**、表示名は含みません。件名と送信元はUTF-8で各200文字以内、省略時は末尾に…を付けます。改行・制御文字は除去し、欠落項目は省略します。メール本文は送りません。HTTP TitleはASCIIのGmail Bridgeです。
+Titleは送信者、Bodyの1行目は件名、2行目は任意の本文プレビューです。送信者は表示名があれば「表示名 <メールアドレス>」、なければアドレスです。送信者表示OFFならTitleはGmail Bridge、件名表示OFFならBodyの1行目は「新着メールが1件あります」です。有効な項目が欠落した場合、送信者は「送信者不明」、件名は「件名なし」、プレビューは省略します。他の項目をTitleへ繰り上げません。全項目OFFは従来表示を維持します。各項目の空白・改行・制御文字を整理し、200文字まで（超過時…）に制限します。ntfyにはUTF-8 JSONで送るため、日本語TitleをHTTPヘッダに直接入れません。
 
-元メールのヘッダを既存の取得処理で解析し、Gmail API成功時点でsender/subjectと通知用UTC時刻をDBに保存します。通知のためだけに元メールを再取得しません。Fromがない、不正、複数アドレスなど、一意に判定できない場合はフィルタ有効時にsuppressedとなります。offなら送信元がなくても固定文で通知できます。
+表示名・本文プレビューは表示設定OFFでも取り込み時にDBへ保存します。text/plainを優先し、HTMLのみなら標準ライブラリの最小テキスト抽出を使用します。添付・添付メールとscript/styleはプレビュー対象外です。
 
-sender/subject表示は認証のないtopicでも情報を公開し得るため、既定falseです。送信元フィルタはFrom文字列の選別であり、送信者の認証・なりすまし防止ではありません。TLS、ACL、購読認証、reverse proxy等は利用者のntfyサーバー側で管理します。
+元メールのヘッダを既存の取得処理で解析し、Gmail API成功時点でsender/subject/sender_name/previewと通知用UTC時刻をDBに保存します。通知のためだけに元メールを再取得しません。Fromがない、不正、複数アドレスなど、一意に判定できない場合はフィルタ有効時にsuppressedとなります。offなら送信元がなくても固定文で通知できます。
+
+送信者・件名・プレビュー表示は認証のないtopicでも情報を公開し得るため、既定falseです。送信元フィルタはFrom文字列の選別であり、送信者の認証・なりすまし防止ではありません。TLS、ACL、購読認証、reverse proxy等は利用者のntfyサーバー側で管理します。
 
 ## 許可・除外リスト
 
@@ -89,7 +94,7 @@ pendingから他3状態へ進み、sent / suppressed / expiredは後の設定変
 - 部分initの対象外に残った過去メールは、後のrunで通常取り込み・通常通知の対象になり得ます。全過去メールを通知せず取り込むにはinit --allを使います。
 - 通常importとDrive fallbackは同じ通知登録経路を使用し、最終取り込み状態と通知登録を同じDB transactionで確定します。fallback通知も元メールの送信元・件名を使います。
 - runの大量取り込み中は5件処理または30秒経過後、バッチ末尾にも通知機会を設けます。1回の機会で最大10送信要求、30秒の開始予算です。個々の通信timeoutがあるため厳密な30秒以内完了を保証しません。最初の通信失敗後はその機会の送信を止め、バッチ内は30秒の再試行待ちを置きます。取り込みと通知処理は並列ではありません。
-- v1.0 DBのsender/subjectは元メール再取得で補完しません。フィルタoffなら固定文、onでsender不明ならsuppressed。表示を有効にしても欠落項目は省略します。
+- 旧DBの不足したメタデータは元メール再取得で補完しません。フィルタonでsender不明ならsuppressed。表示ON時の欠落は上記の代替表示を使います。schema 2移行は既存通知状態・TTL起点を保持します。
 - 旧DBのTTL時刻は有効なimported_at、なければ通知created_atから移行し、migration現在時刻へ更新しません。時刻不明の旧pendingは正のTTLではexpired、無期限なら送信可能です。旧レコードのinit由来が不明な場合は推測で抑止せず、既存通知状態を維持します。
 
-障害・復旧通知は通常通知のsender/subject、送信元フィルタ、TTLの対象外です。enabledには従い、現在設定が不正なら送信しません。既存の復旧通知失敗は独立して再送されない仕様を維持しています。
+障害・復旧通知は通常通知のsender/subject/preview、送信元フィルタ、TTLの対象外です。enabledには従い、現在設定が不正なら送信しません。既存の復旧通知失敗は独立して再送されない仕様を維持しています。

@@ -1,13 +1,15 @@
 # 更新・保守・障害復旧（v1.1）
 
-対象はDocker Hub `sosboy/gmail-bridge` の公開後のv1.1 / RCです。v1.1.0-rc.1も正式v1.1.0も現在未公開です。実環境の削除を無効にした状態で確認してください。導入は [INSTALL.md](INSTALL.md)、通知は [NOTIFICATIONS.md](NOTIFICATIONS.md)。
+[English](MAINTENANCE.en.md) · 日本語
+
+対象はDocker Hub `sosboy/gmail-bridge` のv1.1.0です。rc.2から正式版へ更新する場合も、停止・backup・pull・status・upの順で進めます。実環境の削除を無効にした状態で確認してください。導入は [INSTALL.md](INSTALL.md)、通知は [NOTIFICATIONS.md](NOTIFICATIONS.md)。
 
 ## v1.0系から更新する順序
 
 1. 正本GitHubの対象タグのRelease Notesと設定例を確認し、現在のイメージの完全タグ・digest、Compose、環境変数、UID/GID、ホスト保存先を記録します。mainは開発版であり、正式配布の代用ではありません。
 2. `docker compose stop` で常駐を停止します。別の単発init/run/cleanup、同じDBを使用するコンテナやタスクもすべて止め、処理終了を確認します。
 3. ホストの**設定、token、data全体、backups、logs、Compose、ローカル.env**を非公開の別フォルダ／NASスナップショットへ保存します。DB本体だけでなくSQLite付随ファイルも含む停止時点の一式を保持し、backupの読み取りと容量を確認します。credentialsはPC側で別途保管します。
-4. 初回更新は旧方式を維持することを推奨します。`docker-compose.image.example.yml` を利用し、`BRIDGE_CONFIG_DIR` は未指定のまま、マウント元を既存のものに合わせます。`.env` の `BRIDGE_VERSION` だけを公開済みの完全タグへ変更します（RCなら `1.1.0-rc.1`、先頭vなし）。既存config/token/DBを新しい例で上書きしません。
+4. 初回更新は旧方式を維持することを推奨します。`docker-compose.image.example.yml` を利用し、`BRIDGE_CONFIG_DIR` は未指定のまま、マウント元を既存のものに合わせます。`.env` の `BRIDGE_VERSION` だけを公開済みの完全タグへ変更します（正式版は `1.1.0`、先頭vなし）。既存config/token/DBを新しい例で上書きしません。
 5. `docker compose config --quiet`、`docker compose pull` を実行します。旧版を戻せるようイメージを保持します。**更新時にinitは実行しません。**
 6. 常駐を停止したまま `docker compose run --rm gmail-bridge python -m app.main status` を実行します。既存DBの検証と必要なmigrationが行われ、ローカル状態を表示します。statusは新規DBを作らず、IMAP/Gmailへ接続しません。失敗した場合はupせず、下記の障害対応へ進みます。
 7. migration専用backup、既存mailbox・初期化状態・メッセージ件数を確認し、`docker compose up -d`。ログ、新着の通常取り込み、token更新、バックアップ作成を確認します。日次cleanup記録も同じdataに保持されます。削除の再有効化は保存内容を確認してから行います。
@@ -26,17 +28,17 @@ RCから正式版への移行も同じ順序です。同じホスト保存先と
 
 ## DB migrationとbackup
 
-アプリ版v1.1とDB版は別です。DBは `PRAGMA user_version` で管理し、現在のschemaは1、既存v1.0は0です。
+アプリ版v1.1とDB版は別です。DBは `PRAGMA user_version` で管理し、現在のschemaは2、既存v1.0は0、rc.1は1、rc.2は2です。
 
 既存DBのintegrity_checkと既知schemaを検証 → SQLite backup APIで専用backup → transaction内で追加・既存状態維持 → schema検証と版更新 → commit、の順で自動移行します。migrationはinitを呼びません。失敗時はtransactionをrollbackし、既存schema・状態を保持して待機します。backup作成に失敗した場合もmigrationを続行しません。
 
 | backup | 保存先（新方式） | 用途・保持 |
 | --- | --- | --- |
 | 更新前の手動一式 | 利用者が選ぶ非公開の別フォルダ | 設定/token/data等も含むrollback用。移行専用DBだけでは代用不可 |
-| migration専用 | /config/backups/db/migrations/state_before_schema_1_日時_識別子.db | 移行前DB。日次ローテーション対象外、保管・容量は利用者が管理 |
+| migration専用 | /config/backups/db/migrations/state_before_schema_2_日時_識別子.db | 移行前DB。日次ローテーション対象外、保管・容量は利用者が管理 |
 | 日次DB | /config/backups/db/state_YYYY-MM-DD.db | UTC日付、SQLite backup API、integrity_check、最新14ファイル |
 
-旧方式は `/app/backups/...` です。稼働中state.dbだけの単純コピーは使いません。backupには送信元・件名・メールID・通知状態等が入り得るため非公開にします。
+旧方式は `/app/backups/...` です。稼働中state.dbだけの単純コピーは使いません。backupには送信元アドレス・表示名・件名・本文プレビュー・メールID・通知状態等が入り得るため非公開にします。
 
 ## rollbackとbackupからの復旧
 
@@ -72,4 +74,4 @@ INIは次処理周期・次メール処理・通知送信直前に再確認し�
 
 GitHubから対象branch/tagを取得 → 差分とRelease Notes確認 → 独立した検証環境で編集 → 全テスト/lint/公開前チェック/Compose確認 → 差分レビュー → 指示を受けてcommit・push → CIと両CPUのDocker検証 → RC公開 → QNAPでpullして受入確認 → 正式Release、の順です。Local Workの作業フォルダや実運用データを更新元にしません。セッション終了前に未commit差分の保全方針を決め、未公開の作業がGitHubへ保存済みであると誤認しないでください。
 
-Phase 5ではcommit・push・RC公開は行っていません。英語資料の全面整備は仕様確定後の別工程です。
+rc.2の実機運用確認を経てv1.1.0の日本語・英語資料を整備しました。過去のPhase資料は当時の作業記録です。

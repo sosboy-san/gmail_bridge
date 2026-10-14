@@ -6,9 +6,9 @@
 <meta name="description" content="会社メールも独自ドメインも、自分のGmailへ。Gmail Bridgeは外部メールを取り込み、Gmailのフィルタ・ラベル・検索でまとめて扱うためのセルフホスト型ツールです。">
 <title>いつものメールを、自分のGmailへ。 | Gmail Bridge</title>
 <link rel="stylesheet" href="style.css">
-</head>
+<link rel="alternate" hreflang="en" href="index.en.html"><link rel="alternate" hreflang="ja" href="index.html"></head>
 <body>
-<header><nav aria-label="メインナビゲーション"><a href="index.html">Gmail Bridge</a><a href="privacy.html">プライバシー</a><a href="terms.html">利用条件</a><a href="https://github.com/sosboy-san/gmail_bridge">GitHub</a></nav></header>
+<header><nav aria-label="メインナビゲーション"><a href="index.html">Gmail Bridge</a><a href="privacy.html">プライバシー</a><a href="terms.html">利用条件</a><a href="https://github.com/sosboy-san/gmail_bridge">GitHub</a><a href="index.en.html" lang="en" hreflang="en">English</a><span aria-current="page">日本語</span></nav></header>
 <main class="introduction">
 <section class="hero" aria-labelledby="intro-title">
 <p class="eyebrow">外部メールを、自分のGmailに集約</p>
@@ -57,10 +57,11 @@
 <p>Gmail Bridgeは、利用者自身のNAS・Linux・Docker環境で動かすツールです。QNAP NAS / Container Stationでの運用実績があります。こちらでメールを預かったり、ログインするだけで利用できるサービスを提供したりするものではありません。</p>
 <p>導入には、利用者自身のGoogle Cloudプロジェクト、OAuthクライアント、認証情報が必要です。認証や初期化を行い、保存先と定期実行の環境を設定します。</p>
 <aside><strong>公開コードと個人用OAuthについて</strong><p>このサイトで案内するOAuthアプリは、所有者本人の個人運用専用です。公開コードを使う方は、各自のGoogle Cloudプロジェクトと認証情報を用意してください。所有者のOAuth認証情報は配布しません。</p></aside></section>
-<section id="start" aria-labelledby="start-title"><h2 id="start-title">導入を検討する</h2>
+<section id="start" aria-labelledby="start-title"><h2 id="start-title">正式版v1.1.0の導入を検討する</h2>
 <p>まず仕組みと制限を確認し、お使いの環境に合うか確かめてください。具体的な設定・導入手順はGitHubにまとめています。</p>
 <ul class="guide-links">
 <li><a href="https://github.com/sosboy-san/gmail_bridge/blob/main/README.md">README — 仕組み・機能・制限を知る</a></li>
+<li><a href="https://github.com/sosboy-san/gmail_bridge/blob/main/MAINTENANCE.md">MAINTENANCE — 更新・復旧（更新時のinitは不要）</a></li>
 <li><a href="https://github.com/sosboy-san/gmail_bridge/blob/main/INSTALL.md">INSTALL — 認証・初期化・Dockerの導入手順</a></li>
 <li><a href="https://github.com/sosboy-san/gmail_bridge/blob/main/TROUBLESHOOTING.md">TROUBLESHOOTING — 困ったときの確認方法</a></li>
 <li><a href="https://github.com/sosboy-san/gmail_bridge/blob/main/SECURITY.md">SECURITY — 認証情報と安全な運用</a></li>
