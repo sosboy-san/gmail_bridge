@@ -17,3 +17,7 @@ Run logs contain mail metadata and must remain private; other commands appear in
 
 
 For v1.1 startup states, DB migration failure and recovery, see [Maintenance](MAINTENANCE.en.md). WAITING_FOR_INIT is expected only for a new uninitialized installation; investigate paths/state loss on upgrades before using init. Notification TTL can expire pending entries; see [Notifications](NOTIFICATIONS.en.md).
+
+## Stuck at IMAP connection
+
+v1.1.0 and earlier have no explicit IMAP timeout. Preserve logs and restart the container if connection logs stop advancing; do not reinitialize or delete the DB. v1.1.1 adds a 30-second socket wait timeout and stage logs. This does not bound OS DNS resolution or total batch duration.

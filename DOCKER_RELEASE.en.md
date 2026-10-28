@@ -2,15 +2,15 @@
 
 English · [日本語](DOCKER_RELEASE.md)
 
-Repository: [sosboy/gmail-bridge](https://hub.docker.com/r/sosboy/gmail-bridge). Stable v1.1.0 follows owner-reported problem-free QNAP operation of rc.2. Images support linux/amd64 and linux/arm64; ARM32 is unsupported.
+Repository: [sosboy/gmail-bridge](https://hub.docker.com/r/sosboy/gmail-bridge). Stable v1.1.1 adds IMAP timeout recovery to v1.1.0. Images support linux/amd64 and linux/arm64; ARM32 is unsupported.
 
 ## Install or upgrade
 
 ```bash
-docker pull sosboy/gmail-bridge:1.1.0
+docker pull sosboy/gmail-bridge:1.1.1
 ```
 
-Use docker-compose.config.image.example.yml for a new v1.1 installation, with exact BRIDGE_VERSION=1.1.0, one writable /config mount and BRIDGE_CONFIG_DIR=/config. Follow [Installation](INSTALL.en.md) for OAuth/configuration and safe waiting followed by explicit init. Existing deployments follow [Maintenance](MAINTENANCE.en.md): stop, complete backup, pull, stopped status, up; never repeat init. Keep legacy mounts when upgrading an older deployment before considering a separate layout change. v1.0 cannot use /config.
+Use docker-compose.config.image.example.yml for a new v1.1 installation, with exact BRIDGE_VERSION=1.1.1, one writable /config mount and BRIDGE_CONFIG_DIR=/config. Follow [Installation](INSTALL.en.md) for OAuth/configuration and safe waiting followed by explicit init. Existing deployments follow [Maintenance](MAINTENANCE.en.md): stop, complete backup, pull, stopped status, up; never repeat init. Keep legacy mounts when upgrading an older deployment before considering a separate layout change. v1.0 cannot use /config.
 
 ## Maintainer setup
 
@@ -22,7 +22,7 @@ Create the public Hub repository and a dedicated Read & Write access token (Dele
 
 | Git tag | Docker tags |
 | --- | --- |
-| v1.1.0 | 1.1.0 / 1.1 / 1 / latest |
+| v1.1.1 | 1.1.1 / 1.1 / 1 / latest |
 | v1.1.0-rc.2 | 1.1.0-rc.2 only |
 
 Each architecture is built and tested, including CLI startup, before one multiarch build/push. QEMU validation is not ARM hardware acceptance. Exact versions and published Git tags are never overwritten. RC publication does not update floating tags. Stable releases update minor/major/latest; latest can eventually cross major versions. Pull and container recreation apply updates, not merely restart.
@@ -36,7 +36,7 @@ For the historical v1.0.0 bootstrap only, use Actions → Publish Docker release
 Check Actions Summary and all four stable tags:
 
 ```bash
-docker buildx imagetools inspect sosboy/gmail-bridge:1.1.0
+docker buildx imagetools inspect sosboy/gmail-bridge:1.1.1
 docker buildx imagetools inspect sosboy/gmail-bridge:1.1
 docker buildx imagetools inspect sosboy/gmail-bridge:1
 docker buildx imagetools inspect sosboy/gmail-bridge:latest

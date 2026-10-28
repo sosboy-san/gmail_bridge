@@ -5,40 +5,70 @@ from email.parser import BytesParser
 
 from app.i18n import t
 
+IMAP_TIMEOUT_SECONDS = 30
+
 
 class ImapClient:
 
-    def __init__(self, host, port, user, password):
+    def __init__(self, host, port, user, password, *, timeout=IMAP_TIMEOUT_SECONDS):
         self.host = host
         self.port = port
         self.user = user
         self.password = password
+        self.timeout = timeout
 
         self.imap = None
         self.current_mailbox = None
         self.readonly = True
 
     def connect(self):
-        self.imap = imaplib.IMAP4(
-            self.host,
-            self.port
-        )
+        self.close()
+        stage = 'connect'
+        try:
+            print(t('imap.stage.connect'), flush=True)
+            # The socket timeout also applies to greeting, TLS and later commands.
+            self.imap = imaplib.IMAP4(self.host, self.port, timeout=self.timeout)
+            stage = 'starttls'
+            print(t('imap.stage.starttls'), flush=True)
+            self.imap.starttls(ssl_context=ssl.create_default_context())
+            stage = 'login'
+            print(t('imap.stage.login'), flush=True)
+            self.imap.login(self.user, self.password)
+            print(t('imap.stage.ready'), flush=True)
+        except Exception:
+            print(t('imap.stage.failed', stage=stage), flush=True)
+            # A timed-out buffered socket must never be reused. Do not attempt
+            # protocol LOGOUT on a failed/partially initialized connection.
+            self._discard()
+            raise
 
-        self.imap.starttls(ssl_context=ssl.create_default_context())
-
-        self.imap.login(
-            self.user,
-            self.password
-        )
+    def _discard(self):
+        connection, self.imap = self.imap, None
+        self.current_mailbox = None
+        self.readonly = True
+        if connection is not None:
+            try:
+                connection.shutdown()
+            except Exception:
+                # If library cleanup itself failed, still release both local
+                # resources independently; neither close sends an IMAP command.
+                for resource in (getattr(connection, 'file', None),
+                                 getattr(connection, 'sock', None)):
+                    if resource is not None:
+                        try:
+                            resource.close()
+                        except Exception:
+                            pass
 
     def close(self):
-        if self.imap:
+        if self.imap is not None:
             try:
                 self.imap.logout()
             except Exception:
                 pass
 
-            self.imap = None
+            finally:
+                self._discard()
 
     def select_mailbox(
         self,

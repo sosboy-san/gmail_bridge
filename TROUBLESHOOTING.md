@@ -63,3 +63,7 @@ Notification failures keep imported mail finalized and leave only the notificati
 Cleanup requires enabled deletion and an expired recorded deadline. Disabling deletion also suspends existing schedules. Missing UIDs are deliberately left unconfirmed. On non-UIDPLUS servers, unrelated Deleted flags abort EXPUNGE. Failed cleanup never advances the daily marker. Inspect a dry-run while the service is stopped before retrying manually.
 
 Run logs contain mail metadata and must remain private; other commands appear in container logs. Backups retain the latest 14 daily files, not strictly 14 calendar days. A zero run exit code or a running container does not guarantee all messages succeeded: inspect failure counts and state. DB restore or remote-success/local-commit crashes can still cause duplicate import.
+
+## IMAP接続待ちで停止する場合
+
+v1.1.0以前はIMAPの明示的なタイムアウトがありません。コンテナが実行中でも「IMAP接続…」で進まない場合は、ログを保全してコンテナを再起動します。initやDB削除は不要です。v1.1.1はソケット待ちを30秒に制限し、接続段階をログへ出します。DNS名前解決そのものや一連の処理全体の制限ではありません。

@@ -36,7 +36,7 @@ Desktop appのループバック方式については [Google公式手順](https
 
 ## 3. v1.1の新規導入（Docker Hub / QNAP）
 
-新規導入は正式版v1.1.0と単一 `/config` 方式を使用します。旧v1.0.0はこの方式に対応していません。既存環境の更新は [MAINTENANCE.md](MAINTENANCE.md) を参照し、initは実行しないでください。
+新規導入は正式版v1.1.1と単一 `/config` 方式を使用します。旧v1.0.0はこの方式に対応していません。既存環境の更新は [MAINTENANCE.md](MAINTENANCE.md) を参照し、initは実行しないでください。
 
 GitHub `sosboy-san/gmail_bridge` を正本とし、対象タグに含まれる設定例・Compose・導入資料を取得します。作業フォルダの古いコピーを更新元にしないでください。
 
@@ -66,7 +66,7 @@ cp notification_senders.example.ini config/notification_senders.ini
 Composeに対応するローカル `.env` で、**公開済みの完全バージョン**を指定します。Dockerタグには先頭の `v` を付けません。正式版の例です。
 
 ```dotenv
-BRIDGE_VERSION=1.1.0
+BRIDGE_VERSION=1.1.1
 BRIDGE_UID=1000
 BRIDGE_GID=1000
 TZ=Asia/Tokyo

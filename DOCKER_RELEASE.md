@@ -24,8 +24,8 @@
 | --- | --- |
 | v1.0.0 | 1.0.0 / 1.0 / 1 / latest |
 | v1.0.1 | 1.0.1 / 1.0 / 1 / latest |
-| v1.1.0 | 1.1.0 / 1.1 / 1 / latest |
-| v1.1.0-rc.2 | 1.1.0-rc.1のみ。latest / 1 / 1.1は変更しない |
+| v1.1.1 | 1.1.1 / 1.1 / 1 / latest |
+| v1.1.0-rc.2 | 1.1.0-rc.2のみ。latest / 1 / 1.1は変更しない |
 
 amd64とarm64でそれぞれビルド・オフラインテスト・CLI起動を確認した後、linux/amd64とlinux/arm64を含むイメージを一度のbuild/pushで公開します。QEMUを使うARM検証はARM実機の動作保証ではありません。
 
@@ -50,7 +50,7 @@ docker buildx imagetools inspect sosboy/gmail-bridge:latest
 
 ## イメージから導入する
 
-現在の正式版はv1.1.0です。rc.2のQNAP実機運用確認を経て正式化しました。v1.0用の旧方式Composeは `docker-compose.image.example.yml`（既定sosboy/gmail-bridge:1.0.0）。v1.1用は `docker-compose.config.image.example.yml`（バージョン指定必須、単一/config）です。v1.0に/config方式を組み合わせないでください。
+現在の正式版はv1.1.1です。v1.1.0にIMAP無応答待ちの修正を加えました。v1.0用の旧方式Composeは `docker-compose.image.example.yml`（既定sosboy/gmail-bridge:1.0.0）。v1.1用は `docker-compose.config.image.example.yml`（バージョン指定必須、単一/config）です。v1.0に/config方式を組み合わせないでください。
 
 新規導入は [INSTALL.md](INSTALL.md)、既存環境更新・rollbackは [MAINTENANCE.md](MAINTENANCE.md) に従います。RCも正式版も同じComposeで完全タグを変更します。v1.1は未初期化待機→Console明示init→自動復帰、v1.0は常駐開始前の単発initです。ARM32は対象外です。
 

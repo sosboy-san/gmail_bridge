@@ -1,4 +1,4 @@
-# Upgrades, maintenance and recovery — v1.1.0
+# Upgrades, maintenance and recovery — v1.1.1
 
 English · [日本語](MAINTENANCE.md)
 
@@ -7,7 +7,7 @@ English · [日本語](MAINTENANCE.md)
 1. Read the target release notes. Record your current exact image version/digest, Compose, environment, UID/GID and host paths.
 2. Stop the service with `docker compose stop`. Stop all other init/run/cleanup processes, containers and scheduled tasks using this database, and wait for them to finish.
 3. Privately back up **configuration, token, the complete data directory (including SQLite sidecars), backups, logs, Compose and local .env** from the stopped deployment. Verify readability and free space. Keep desktop credentials separately.
-4. Keep the current mount layout for the first upgrade. Change only `BRIDGE_VERSION=1.1.0` in `.env`; do not replace existing configuration/token/database with examples. With legacy mounts, leave BRIDGE_CONFIG_DIR unset.
+4. Keep the current mount layout for the first upgrade. Change only `BRIDGE_VERSION=1.1.1` in `.env`; do not replace existing configuration/token/database with examples. With legacy mounts, leave BRIDGE_CONFIG_DIR unset.
 5. Run `docker compose config --quiet` and `docker compose pull`. Retain the previous image for rollback. **Never run init during an upgrade.**
 6. While the service remains stopped, validate local state:
 
@@ -19,7 +19,7 @@ Status checks the existing DB and performs required migration, without creating 
 
 7. Check the migration backup if created, mailbox identity, initialization state and message count. Run `docker compose up -d` and inspect logs, new imports, token refresh and daily backups. Re-enable deletion only after verifying the retained data.
 
-rc.2 already uses schema 2, so promotion to v1.1.0 needs no new migration or init when the same state is retained. Use exact image tags; latest/major/minor can change later. `docker compose restart` does not install a new image; pull followed by up recreates the container.
+rc.2 already uses schema 2, so promotion to v1.1.1 needs no new migration or init when the same state is retained. Use exact image tags; latest/major/minor can change later. `docker compose restart` does not install a new image; pull followed by up recreates the container.
 
 ## Move legacy mounts to /config
 
@@ -29,7 +29,7 @@ Use docker-compose.config.image.example.yml with one writable `/config` mount an
 
 ## Database migrations and backups
 
-Schema uses `PRAGMA user_version`: v1.0 is 0, rc.1 is 1, rc.2/v1.1.0 is 2. Existing DB integrity/schema is checked; a dedicated SQLite backup is created; additions and version update occur transactionally. Existing import/notification states and notification TTL origins are preserved. Schema 2 adds sender display name and preview; old missing fields are not fetched from IMAP. Failure rolls back and stops migration, including failure to create a backup.
+Schema uses `PRAGMA user_version`: v1.0 is 0, rc.1 is 1, rc.2/v1.1.1 is 2. Existing DB integrity/schema is checked; a dedicated SQLite backup is created; additions and version update occur transactionally. Existing import/notification states and notification TTL origins are preserved. Schema 2 adds sender display name and preview; old missing fields are not fetched from IMAP. Failure rolls back and stops migration, including failure to create a backup.
 
 | Backup | /config path / purpose |
 | --- | --- |

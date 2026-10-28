@@ -1,4 +1,4 @@
-# Installation — v1.1.0
+# Installation — v1.1.1
 
 English · [日本語](INSTALL.md)
 
@@ -55,7 +55,7 @@ Edit `config/config.ini` as UTF-8. Set `[imap] host`, `user`, `password`, and `[
 Create a local `.env` next to Compose:
 
 ```dotenv
-BRIDGE_VERSION=1.1.0
+BRIDGE_VERSION=1.1.1
 BRIDGE_UID=1000
 BRIDGE_GID=1000
 TZ=Asia/Tokyo
