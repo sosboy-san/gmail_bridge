@@ -195,5 +195,10 @@
   "notification.subject": "Subject: {value}",
   "notification.legacy_ttl": "[NOTIFICATION_CONFIG] ttl_minutes is not configured; legacy unlimited retry behavior is active.",
   "notification.send_failed": "Notification send failed; retry remains pending.",
-  "config.connection_changed": "[CONFIG_RESTART_REQUIRED] Connection settings changed; resume with new connections on the next cycle."
+  "config.connection_changed": "[CONFIG_RESTART_REQUIRED] Connection settings changed; resume with new connections on the next cycle.",
+  "imap.stage.connect": "IMAP stage: TCP connection / server greeting",
+  "imap.stage.starttls": "IMAP stage: STARTTLS",
+  "imap.stage.login": "IMAP stage: login",
+  "imap.stage.ready": "IMAP connection ready",
+  "imap.stage.failed": "IMAP failed stage: {stage}"
 }
