@@ -20,4 +20,4 @@ For v1.1 startup states, DB migration failure and recovery, see [Maintenance](MA
 
 ## Stuck at IMAP connection
 
-v1.1.0 and earlier have no explicit IMAP timeout. Preserve logs and restart the container if connection logs stop advancing; do not reinitialize or delete the DB. The v1.1.1 candidate adds a 30-second socket wait timeout and stage logs. This does not bound OS DNS resolution or total batch duration.
+v1.1.0 and earlier have no explicit IMAP timeout. Preserve logs and restart the container if connection logs stop advancing; do not reinitialize or delete the DB. v1.1.1 adds a 30-second socket wait timeout and stage logs. This does not bound OS DNS resolution or total batch duration.

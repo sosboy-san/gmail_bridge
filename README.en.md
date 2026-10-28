@@ -2,7 +2,7 @@
 
 English · [日本語](README.md)
 
-Stable release: **[v1.1.0](https://github.com/sosboy-san/gmail_bridge/releases/tag/v1.1.0)** (2026-10-14).
+Stable release: **[v1.1.1](https://github.com/sosboy-san/gmail_bridge/releases/tag/v1.1.1)** (2026-10-29).
 
 Import external IMAP mail into your own Gmail account using the Gmail API. Keep Gmail as the place where you use filters, labels, search and archiving, rather than simply viewing separate accounts in one mail app. Self-host on Linux or Docker; the owner has reported problem-free rc.2 operation on QNAP Container Station before this stable release.
 
@@ -20,7 +20,7 @@ Import external IMAP mail into your own Gmail account using the Gmail API. Keep 
 ## Start with Docker
 
 ```bash
-docker pull sosboy/gmail-bridge:1.1.0
+docker pull sosboy/gmail-bridge:1.1.1
 ```
 
 Pulling alone does not configure the service. Follow [Installation](INSTALL.en.md) to create your own Google OAuth token, configure IMAP, mount persistent storage at `/config`, start the service and explicitly initialize it. For an existing deployment, follow [Maintenance](MAINTENANCE.en.md); **do not initialize again**.

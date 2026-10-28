@@ -2,12 +2,14 @@
 
 English · [日本語](RELEASE_NOTES.md)
 
-## v1.1.1 candidate — Unreleased
+## v1.1.1 — 2026-10-29
 
 - Apply a 30-second socket timeout to IMAP connection/read waits, including greeting, STARTTLS, login and subsequent commands. This is an inactivity bound, not a total batch deadline.
 - Discard failed/partial connections without protocol LOGOUT before retry. Preserve the existing three-attempt policy and 10/30-second waits. Close local resources even after logout fails.
 - Add localized connection-stage logs without changing DB, notification states/TTL or deletion guards.
 - Regression coverage uses silent loopback peers for greeting, STARTTLS and command waits, plus cleanup and reconnect cases. OS DNS resolution and continuously trickling responses are outside this total-time guarantee.
+
+Validation: 107 offline tests, Ruff, compile/dependency/publication checks and amd64/arm64 image tests passed. Post-upgrade QNAP acceptance remains pending. Schema 2 and configuration remain compatible; do not repeat init.
 
 ## v1.1.0 — 2026-10-14
 

@@ -2,9 +2,9 @@
 
 [English](README.en.md) · 日本語
 
-v1.1.0はrc.2のQNAP実機運用確認を経た正式版です。導入・更新資料: [INSTALL.md](INSTALL.md)、[MAINTENANCE.md](MAINTENANCE.md)、[NOTIFICATIONS.md](NOTIFICATIONS.md)。
+v1.1.1はIMAPの無応答待ちに対策した修正版です。導入・更新資料: [INSTALL.md](INSTALL.md)、[MAINTENANCE.md](MAINTENANCE.md)、[NOTIFICATIONS.md](NOTIFICATIONS.md)。
 
-正式版: **[v1.1.0](https://github.com/sosboy-san/gmail_bridge/releases/tag/v1.1.0)**（2026-10-14）
+正式版: **[v1.1.1](https://github.com/sosboy-san/gmail_bridge/releases/tag/v1.1.1)**（2026-10-29）
 
 外部メールサーバーのIMAPメールを、Gmail APIでGmailへ取り込むPythonアプリです。Gmailの外部POP取得を利用できない環境で、会社メールなどをGmailから確認する用途を想定しています。
 
@@ -24,7 +24,7 @@ Semantic Versioning（MAJOR.MINOR.PATCH）を採用します。互換性の対�
 | `v1.1.0` | 後方互換を保つ機能追加 |
 | `v2.0.0` | 設定形式・DB・CLIなどの互換性を壊す変更 |
 
-v1.1は既存設定・保存方式を維持しますが、init通知抑止、設定不正時の停止、明示initのみのDB作成は意図的な運用変更です。単純に全挙動互換とは扱わず、更新前にv1.1.0のリリースノートを確認してください。RCは実機検証用Pre-releaseで、正式版やlatestとは分離します。
+v1.1は既存設定・保存方式を維持しますが、init通知抑止、設定不正時の停止、明示initのみのDB作成は意図的な運用変更です。単純に全挙動互換とは扱わず、更新前にv1.1.1のリリースノートを確認してください。RCは実機検証用Pre-releaseで、正式版やlatestとは分離します。
 
 正式版でも既知の制限はあります。[リリースノート](RELEASE_NOTES.md)で検証範囲と導入時の注意を確認してください。
 
@@ -111,7 +111,7 @@ tools/check_release.py    公開対象検査・配布ZIP作成
 
 Gmail Bridge imports mail from an external IMAP mailbox through the Gmail API. The original implementation has been used on QNAP Container Station. This release adds Japanese/English catalogs, installation documentation, packaging safeguards, and offline regression tests with separate import and notification states; v1.1 introduces the behavior changes described in the release notes.
 
-Read [Installation](INSTALL.md#english), [Uninstall](UNINSTALL.md#english), [Troubleshooting](TROUBLESHOOTING.md#english), and [Release notes](RELEASE_NOTES.md) before deployment. QNAP startup and resumed imports have been reported by the owner; verify the acceptance checks for your own deployment.
+Read [Installation](INSTALL.en.md), [Uninstall](UNINSTALL.en.md), [Troubleshooting](TROUBLESHOOTING.en.md), and [Release notes](RELEASE_NOTES.md) before deployment. QNAP startup and resumed imports have been reported by the owner; verify the acceptance checks for your own deployment.
 
 Messages are fetched with `BODY.PEEK[]`. Source unread messages receive Gmail's UNREAD label; later read-state changes are not synchronized. Gmail import is followed by source labeling and an independent ntfy queue. A failed notification is retried without repeating import. An attachment rejection triggers Drive fallback: attachments go to Drive and Gmail receives a reduced message with links. Drive sharing permissions are not made public by this application.
 
@@ -141,4 +141,4 @@ Development, documentation, and release preparation were supported with assistan
 
 ## Docker Hubイメージの利用
 
-旧方式の取得用 `docker-compose.image.example.yml` と、v1.1用の単一/config方式 `docker-compose.config.image.example.yml` を用意しています。公開先は `sosboy/gmail-bridge`、旧方式Composeの既定は `1.0.0` です。v1.1.0では `.env` に `BRIDGE_VERSION=1.1.0` を明示してください。**[Docker Hubで公開済み](https://hub.docker.com/r/sosboy/gmail-bridge)です（linux/amd64・linux/arm64）。** 導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。
+旧方式の取得用 `docker-compose.image.example.yml` と、v1.1用の単一/config方式 `docker-compose.config.image.example.yml` を用意しています。公開先は `sosboy/gmail-bridge`、旧方式Composeの既定は `1.0.0` です。v1.1.1では `.env` に `BRIDGE_VERSION=1.1.1` を明示してください。**[Docker Hubで公開済み](https://hub.docker.com/r/sosboy/gmail-bridge)です（linux/amd64・linux/arm64）。** 導入と更新方法、管理者の設定は [DOCKER_RELEASE.md](DOCKER_RELEASE.md) を参照してください。従来のソースからビルドするComposeも引き続き使えます。

@@ -2,19 +2,19 @@
 
 [English](MAINTENANCE.en.md) · 日本語
 
-対象はDocker Hub `sosboy/gmail-bridge` のv1.1.0です。rc.2から正式版へ更新する場合も、停止・backup・pull・status・upの順で進めます。実環境の削除を無効にした状態で確認してください。導入は [INSTALL.md](INSTALL.md)、通知は [NOTIFICATIONS.md](NOTIFICATIONS.md)。
+対象はDocker Hub `sosboy/gmail-bridge` のv1.1.1です。rc.2から正式版へ更新する場合も、停止・backup・pull・status・upの順で進めます。実環境の削除を無効にした状態で確認してください。導入は [INSTALL.md](INSTALL.md)、通知は [NOTIFICATIONS.md](NOTIFICATIONS.md)。
 
 ## v1.0系から更新する順序
 
 1. 正本GitHubの対象タグのRelease Notesと設定例を確認し、現在のイメージの完全タグ・digest、Compose、環境変数、UID/GID、ホスト保存先を記録します。mainは開発版であり、正式配布の代用ではありません。
 2. `docker compose stop` で常駐を停止します。別の単発init/run/cleanup、同じDBを使用するコンテナやタスクもすべて止め、処理終了を確認します。
 3. ホストの**設定、token、data全体、backups、logs、Compose、ローカル.env**を非公開の別フォルダ／NASスナップショットへ保存します。DB本体だけでなくSQLite付随ファイルも含む停止時点の一式を保持し、backupの読み取りと容量を確認します。credentialsはPC側で別途保管します。
-4. 初回更新は旧方式を維持することを推奨します。`docker-compose.image.example.yml` を利用し、`BRIDGE_CONFIG_DIR` は未指定のまま、マウント元を既存のものに合わせます。`.env` の `BRIDGE_VERSION` だけを公開済みの完全タグへ変更します（正式版は `1.1.0`、先頭vなし）。既存config/token/DBを新しい例で上書きしません。
+4. 初回更新は旧方式を維持することを推奨します。`docker-compose.image.example.yml` を利用し、`BRIDGE_CONFIG_DIR` は未指定のまま、マウント元を既存のものに合わせます。`.env` の `BRIDGE_VERSION` だけを公開済みの完全タグへ変更します（正式版は `1.1.1`、先頭vなし）。既存config/token/DBを新しい例で上書きしません。
 5. `docker compose config --quiet`、`docker compose pull` を実行します。旧版を戻せるようイメージを保持します。**更新時にinitは実行しません。**
 6. 常駐を停止したまま `docker compose run --rm gmail-bridge python -m app.main status` を実行します。既存DBの検証と必要なmigrationが行われ、ローカル状態を表示します。statusは新規DBを作らず、IMAP/Gmailへ接続しません。失敗した場合はupせず、下記の障害対応へ進みます。
 7. migration専用backup、既存mailbox・初期化状態・メッセージ件数を確認し、`docker compose up -d`。ログ、新着の通常取り込み、token更新、バックアップ作成を確認します。日次cleanup記録も同じdataに保持されます。削除の再有効化は保存内容を確認してから行います。
 
-RCから正式版への移行も同じ順序です。同じホスト保存先とComposeを使用し、完全タグを `1.1.0` へ変更します。schema変更がなければ再migrationやinitはありません。浮動タグlatest / 1 / 1.1は意図せず別版へ進むため、保守には完全タグを推奨します。
+RCから正式版への移行も同じ順序です。同じホスト保存先とComposeを使用し、完全タグを `1.1.1` へ変更します。schema変更がなければ再migrationやinitはありません。浮動タグlatest / 1 / 1.1は意図せず別版へ進むため、保守には完全タグを推奨します。
 
 ## 旧マウントから単一/configへ移す場合
 
@@ -74,4 +74,4 @@ INIは次処理周期・次メール処理・通知送信直前に再確認し�
 
 GitHubから対象branch/tagを取得 → 差分とRelease Notes確認 → 独立した検証環境で編集 → 全テスト/lint/公開前チェック/Compose確認 → 差分レビュー → 指示を受けてcommit・push → CIと両CPUのDocker検証 → RC公開 → QNAPでpullして受入確認 → 正式Release、の順です。Local Workの作業フォルダや実運用データを更新元にしません。セッション終了前に未commit差分の保全方針を決め、未公開の作業がGitHubへ保存済みであると誤認しないでください。
 
-rc.2の実機運用確認を経てv1.1.0の日本語・英語資料を整備しました。過去のPhase資料は当時の作業記録です。
+v1.1.0で日英資料を整備し、v1.1.1でIMAP無応答待ちの対策を追加しました。過去のPhase資料は当時の作業記録です。
