@@ -9,11 +9,11 @@
 - TCP/初期応答、STARTTLS、ログインの段階ログを日英で追加。DB・通知状態・TTL・削除条件は変更しません。
 - 無応答サーバーの初期応答待ち・STARTTLS・コマンド応答待ち、失敗後の切断と再接続を検証しました。OSのDNS名前解決やサーバーが少量ずつ応答し続ける場合まで含む総時間制限ではありません。
 
-検証: 107件のオフラインテスト、Ruff、構文・依存関係・公開対象検査、およびGitHub CIのamd64/arm64イメージ内テストが成功。QNAPへの修正版適用後の実機確認はこれからです。DB schema 2・設定形式は維持し、更新時のinitは不要です。
+検証: 107件のオフラインテスト、Ruff、構文・依存関係・公開対象検査、およびGitHub CIのamd64/arm64イメージ内テストが成功。2026-10-29に、私のQNAP Container Station実機へv1.1.1を導入し、稼働を確認しました。DB schema 2・設定形式は維持し、更新時のinitは不要です。
 
 ## v1.1.0 — 2026-10-14
 
-rc.2を所有者のQNAP Container Stationで2026-10-01から継続運用し、2026-10-14に問題なしと報告され、正式版へ移行しました。全環境・全機能の網羅的受入試験を意味するものではありません。
+私のQNAP Container Stationでrc.2を2026-10-01から継続運用し、2026-10-14に問題がないことを確認して正式版へ移行しました。全環境・全機能の網羅的受入試験を意味するものではありません。
 
 - rc.2の動作コード・依存関係・DB schema 2を維持します。
 - 送信者の表示名とアドレスをTitleへ、件名と任意の本文プレビューをBodyへ表示。全表示OFFの従来表示を維持し、UTF-8 JSONで日本語Titleを送ります。
@@ -32,11 +32,11 @@ rc.2を所有者のQNAP Container Stationで2026-10-01から継続運用し、20
 
 ## v1.1.0-rc.2 — 2026-10-01
 
-詳細通知とschema 2を追加。所有者の実機で件名欠落時の代替表示、本文先頭の空白整理が確認され、その後の継続運用で問題なしと報告されています。
+詳細通知とschema 2を追加。私の実機で件名欠落時の代替表示、本文先頭の空白整理を確認し、その後の継続運用でも問題がないことを確認しました。
 
 ## v1.1.0-rc.1 — 2026-10-01
 
-通知フィルタ・TTL、init抑止、DB移行、共通ロック、起動待機、単一/config方式を追加。送信元フィルタは所有者の実機確認済みです。
+通知フィルタ・TTL、init抑止、DB移行、共通ロック、起動待機、単一/config方式を追加。送信元フィルタは私の実機で動作確認済みです。
 
 ## v1.0.0 - 2026-09-30
 
@@ -74,7 +74,7 @@ Gmail取り込み後の通知失敗で再importしない処理、通常/fallback
 
 #### 実機確認とその範囲
 
-所有者から、公開版を基にしたQNAP Container Station環境で初期化・起動ができたこと、および期限切れOAuthトークンの交換後に取り込みが再開したことが報告されています。これは所有者の環境での確認であり、全機能・全環境の受け入れ試験が完了したという意味ではありません。
+私のQNAP Container Station環境で、公開版を基に初期化・起動できること、および期限切れOAuthトークンの交換後に取り込みが再開することを確認しました。これは私の環境での確認であり、全機能・全環境の受け入れ試験が完了したという意味ではありません。
 
 導入先では次を確認してください。
 
@@ -103,6 +103,6 @@ API成功とローカルDB確定の間のクラッシュによる重複可能性
 
 This release adds localization, configuration validation, a container service, documentation and offline regression tests while preserving the message/notification state machine and database schema. The linked Linux CI passed 32 tests, Compose validation, a real Docker build, CLI startup and two additional timezone checks inside the image.
 
-The owner reported successful initialization/startup on QNAP Container Station and resumed imports after replacing an expired OAuth token. This is limited deployment evidence, not comprehensive acceptance testing. Verify import/fallback, notification retries, outage recovery, cleanup, persistent storage and restart behavior in your own environment. Linux-specific checks are skipped on Windows and covered by Linux CI.
+I confirmed successful initialization/startup on my QNAP Container Station and resumed imports after replacing an expired OAuth token. This is limited deployment evidence, not comprehensive acceptance testing. Verify import/fallback, notification retries, outage recovery, cleanup, persistent storage and restart behavior in your own environment. Linux-specific checks are skipped on Windows and covered by Linux CI.
 
 Known limitations include possible duplicates between remote success and local commit, EXPUNGE races without UIDPLUS, no dedicated retry of failed recovery notifications, and a zero run exit code despite individual message failures. Production dependencies remain pinned. See the installation and troubleshooting guides before deployment.
