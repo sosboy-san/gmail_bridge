@@ -9,11 +9,11 @@ English · [日本語](RELEASE_NOTES.md)
 - Add localized connection-stage logs without changing DB, notification states/TTL or deletion guards.
 - Regression coverage uses silent loopback peers for greeting, STARTTLS and command waits, plus cleanup and reconnect cases. OS DNS resolution and continuously trickling responses are outside this total-time guarantee.
 
-Validation: 107 offline tests, Ruff, compile/dependency/publication checks and amd64/arm64 image tests passed. Post-upgrade QNAP acceptance remains pending. Schema 2 and configuration remain compatible; do not repeat init.
+Validation: 107 offline tests, Ruff, compile/dependency/publication checks and amd64/arm64 image tests passed. On October 29, 2026, I deployed v1.1.1 on my QNAP Container Station and confirmed that it is running. Schema 2 and configuration remain compatible; do not repeat init.
 
 ## v1.1.0 — 2026-10-14
 
-Promoted after the owner reported no problems with rc.2 on QNAP Container Station, continuously operated since October 1. This is deployment evidence for that environment, not comprehensive acceptance of all features/environments.
+I promoted rc.2 after continuously operating it on my QNAP Container Station since October 1 and confirming no problems. This is deployment evidence for that environment, not comprehensive acceptance of all features/environments.
 
 Runtime code, dependencies and schema 2 remain identical to rc.2. This release adds paired Japanese/English guides, website pages and Docker Hub documentation. Detailed notifications put sender name/address in Title, subject first and optional preview second in Body. UTF-8 JSON supports Japanese titles. Metadata is stored at import time; retries never refetch original mail. Filtering uses email addresses only.
 
@@ -35,4 +35,4 @@ Added sender filters/TTL, init suppression, migrations, shared locking, startup 
 
 ## v1.0.0 — 2026-09-30
 
-Initial stable release: localized CLI, validated configuration, certificate-verified STARTTLS, literal INI passwords, Gmail/Drive OAuth helper, container service and offline checks. Owner reported QNAP startup and resumed imports after token replacement. Historical details and CI evidence are retained in the [Japanese release history](RELEASE_NOTES.md).
+Initial stable release: localized CLI, validated configuration, certificate-verified STARTTLS, literal INI passwords, Gmail/Drive OAuth helper, container service and offline checks. I confirmed startup on my QNAP and resumed imports after token replacement. Historical details and CI evidence are retained in the [Japanese release history](RELEASE_NOTES.md).
